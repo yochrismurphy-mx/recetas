@@ -76,3 +76,41 @@ export async function parseRecipe(input: string): Promise<ParsedRecipe> {
   }
   return parsed as ParsedRecipe;
 }
+
+export type ShoppingGroup = { aisle: string; items: { name: string; qty: string | null }[] };
+
+export async function consolidateShopping(opts: {
+  ingredients: string[];
+  staples: { name: string; aisle: string | null }[];
+  onHand: string[];
+  aisles: string[];
+}): Promise<ShoppingGroup[]> {
+  const sys = `You build a grocery shopping list in Spanish for a household.
+Input: recipe ingredient lines (with quantities), recurring staples to always include, and items already on hand to EXCLUDE.
+Produce a consolidated buy list:
+- Merge duplicate ingredients across recipes and sum quantities sensibly (e.g. three "1 cebolla" -> "3 cebollas").
+- EXCLUDE anything already on hand.
+- INCLUDE every staple.
+- Group items by aisle, choosing from: ${opts.aisles.join(", ")}.
+- Keep names short, in Spanish.
+Return ONLY a JSON array: [{"aisle":"...","items":[{"name":"...","qty":"..."|null}]}]. No commentary.`;
+
+  const user = JSON.stringify({
+    ingredientes_recetas: opts.ingredients,
+    basicos: opts.staples,
+    ya_tengo: opts.onHand,
+  });
+
+  const msg = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 3000,
+    system: sys,
+    messages: [{ role: "user", content: user }],
+  });
+  const text = msg.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+  const json = text.replace(/```json/gi, "").replace(/```/g, "").trim();
+  return JSON.parse(json) as ShoppingGroup[];
+}

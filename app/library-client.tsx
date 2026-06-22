@@ -85,6 +85,9 @@ export function LibraryClient({
           <Link href="/semana" className="btn btn-ghost">
             Esta semana · {week.size}
           </Link>
+          <Link href="/compras" className="btn btn-ghost">
+            Compras
+          </Link>
           <Link href="/agregar" className="btn btn-primary">
             Agregar receta
           </Link>

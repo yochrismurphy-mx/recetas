@@ -15,6 +15,7 @@ export function WeekClient({ recipes }: { recipes: R[] }) {
         <h1 className="text-3xl font-medium tracking-tight">Esta semana</h1>
         <div className="flex gap-2">
           <Link href="/semana/hoja" className="btn btn-primary">Hoja de cocina</Link>
+          <Link href="/compras" className="btn btn-ghost">Compras</Link>
           <button onClick={() => start(() => clearWeek())} disabled={pending || recipes.length === 0} className="btn btn-ghost">
             Vaciar
           </button>
