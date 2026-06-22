@@ -24,7 +24,7 @@ export function WeekClient({ recipes, tasks }: { recipes: R[]; tasks: T[] }) {
     <main className="mx-auto max-w-2xl px-5 py-8">
       <Link href="/" className="text-sm text-muted transition-colors hover:text-accent">← Biblioteca</Link>
       <div className="mt-4 flex items-center justify-between gap-3">
-        <h1 className="text-3xl font-medium tracking-tight">Esta semana</h1>
+        <h1 className="text-3xl font-medium tracking-tight">Esta semana<span className="text-accent">.</span></h1>
         <div className="flex gap-2">
           <Link href="/semana/hoja" className="btn btn-primary">Hoja de cocina</Link>
           <Link href="/compras" className="btn btn-ghost">Compras</Link>

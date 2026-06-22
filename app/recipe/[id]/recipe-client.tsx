@@ -177,7 +177,7 @@ export function RecipeClient({
           <h1 className="mt-4 text-3xl font-medium leading-tight tracking-tight">{recipe.title}</h1>
           {recipe.type && (
             <div className="mt-2">
-              <span className="rounded-full bg-surface px-2.5 py-0.5 text-[11px] uppercase tracking-wide text-muted">
+              <span className="inline-block rounded-md bg-accent-soft px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-accent-strong">
                 {recipe.type}
               </span>
             </div>
