@@ -66,6 +66,15 @@ create table if not exists plan_items (
   position int not null default 0
 );
 
+-- Free-text cook tasks for the week that are not recipes (e.g. "cortar melón").
+create table if not exists plan_tasks (
+  id uuid primary key default gen_random_uuid(),
+  plan_id uuid not null references plans(id) on delete cascade,
+  text text not null,
+  position int not null default 0,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists staples (
   id uuid primary key default gen_random_uuid(),
   name text not null,

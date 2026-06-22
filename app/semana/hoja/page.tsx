@@ -10,6 +10,7 @@ export default async function Hoja() {
   const s = getServerClient();
   const planId = await currentPlanId(s);
   let rows: any[] = [];
+  let tasks: { text: string }[] = [];
   if (planId) {
     const { data } = await s
       .from("plan_items")
@@ -17,6 +18,12 @@ export default async function Hoja() {
       .eq("plan_id", planId)
       .order("position");
     rows = (data ?? []).map((x: any) => x.recipes).filter(Boolean);
+    const { data: t } = await s
+      .from("plan_tasks")
+      .select("text")
+      .eq("plan_id", planId)
+      .order("position");
+    tasks = t ?? [];
   }
 
   return (
@@ -67,6 +74,18 @@ export default async function Hoja() {
           </div>
         );
       })}
+
+      {tasks.length > 0 && (
+        <div className="mt-8" style={{ breakInside: "avoid" }}>
+          <h2 className="border-b-2 border-amber-700 pb-1 text-xl font-medium">Otras tareas</h2>
+          {tasks.map((t, i) => (
+            <div key={i} className="mt-4 flex items-baseline gap-2 text-base font-medium">
+              <span className="text-neutral-400">☐</span>
+              <span>{t.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </main>
   );
 }

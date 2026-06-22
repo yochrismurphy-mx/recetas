@@ -8,6 +8,7 @@ export default async function Semana() {
   const s = getServerClient();
   const planId = await currentPlanId(s);
   let recipes: { id: string; title: string; emoji: string | null }[] = [];
+  let tasks: { id: string; text: string }[] = [];
   if (planId) {
     const { data } = await s
       .from("plan_items")
@@ -15,6 +16,12 @@ export default async function Semana() {
       .eq("plan_id", planId)
       .order("position");
     recipes = (data ?? []).map((x: any) => x.recipes).filter(Boolean);
+    const { data: t } = await s
+      .from("plan_tasks")
+      .select("id, text")
+      .eq("plan_id", planId)
+      .order("position");
+    tasks = t ?? [];
   }
-  return <WeekClient recipes={recipes} />;
+  return <WeekClient recipes={recipes} tasks={tasks} />;
 }

@@ -37,3 +37,22 @@ export async function clearWeek() {
   await s.from("plans").insert({ label: "Semana actual" });
   touch();
 }
+
+export async function addTask(text: string) {
+  const clean = text.trim();
+  if (!clean) return;
+  const s = getServerClient();
+  const plan = (await currentPlanId(s, true))!;
+  const { count } = await s
+    .from("plan_tasks")
+    .select("*", { count: "exact", head: true })
+    .eq("plan_id", plan);
+  await s.from("plan_tasks").insert({ plan_id: plan, text: clean, position: count ?? 0 });
+  touch();
+}
+
+export async function removeTask(id: string) {
+  const s = getServerClient();
+  await s.from("plan_tasks").delete().eq("id", id);
+  touch();
+}
