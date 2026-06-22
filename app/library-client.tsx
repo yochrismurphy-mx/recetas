@@ -80,9 +80,17 @@ export function LibraryClient({ recipes }: { recipes: Recipe[] }) {
     <main className="mx-auto max-w-6xl px-5 py-6">
       <header className="flex items-baseline justify-between border-b border-neutral-200 pb-3">
         <h1 className="text-2xl font-medium">Recetas</h1>
-        <span className="text-sm text-neutral-500">
-          {filtered.length} de {recipes.length}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-neutral-500">
+            {filtered.length} de {recipes.length}
+          </span>
+          <Link
+            href="/agregar"
+            className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm text-white"
+          >
+            + Agregar
+          </Link>
+        </div>
       </header>
 
       <div className="mt-4 space-y-3">
