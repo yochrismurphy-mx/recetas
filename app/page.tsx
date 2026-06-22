@@ -45,5 +45,15 @@ export default async function Home() {
     weekIds = (items ?? []).map((x: any) => x.recipe_id as string);
   }
 
-  return <LibraryClient recipes={recipes} weekIds={weekIds} />;
+  const { data: collRows } = await supabase.from("collections").select("name").order("name");
+  const { data: tagRows } = await supabase.from("tags").select("name").order("name");
+
+  return (
+    <LibraryClient
+      recipes={recipes}
+      weekIds={weekIds}
+      allCollections={(collRows ?? []).map((c: any) => c.name as string)}
+      allTags={(tagRows ?? []).map((t: any) => t.name as string)}
+    />
+  );
 }

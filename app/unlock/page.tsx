@@ -6,31 +6,14 @@ export default async function Unlock({
   const { error } = await searchParams;
   return (
     <main className="flex min-h-screen items-center justify-center px-6">
-      <form
-        action="/api/unlock"
-        method="post"
-        className="w-full max-w-sm rounded-xl border border-neutral-200 p-6"
-      >
-        <h1 className="text-xl font-medium">Recetas</h1>
-        <p className="mt-1 mb-4 text-sm text-neutral-500">
-          Ingresa la contraseña para entrar.
-        </p>
-        <input
-          name="passphrase"
-          type="password"
-          autoFocus
-          placeholder="Contraseña"
-          className="w-full rounded-md border border-neutral-300 px-3 py-2 outline-none focus:border-neutral-500"
-        />
-        {error ? (
-          <p className="mt-2 text-sm text-red-600">Contraseña incorrecta.</p>
-        ) : null}
-        <button
-          type="submit"
-          className="mt-4 w-full rounded-md bg-neutral-900 px-3 py-2 text-white"
-        >
-          Entrar
-        </button>
+      <form action="/api/unlock" method="post" className="card w-full max-w-sm p-7">
+        <h1 className="text-3xl font-medium tracking-tight">
+          Recetas<span className="text-accent">.</span>
+        </h1>
+        <p className="mt-1 mb-5 text-sm text-muted">Nuestro recetario. Ingresa la contraseña.</p>
+        <input name="passphrase" type="password" autoFocus placeholder="Contraseña" className="input" />
+        {error ? <p className="mt-2 text-sm text-accent-strong">Contraseña incorrecta.</p> : null}
+        <button type="submit" className="btn btn-primary mt-4 w-full">Entrar</button>
       </form>
     </main>
   );

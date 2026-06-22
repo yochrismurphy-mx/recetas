@@ -6,12 +6,11 @@ import type { Recipe, FilterState } from "@/lib/types";
 import { applyFilters } from "@/lib/filters";
 import { toggleWeek } from "./semana/actions";
 
-const TYPE_BG: Record<string, string> = {
-  Aves: "bg-amber-50", Carne: "bg-red-50", Pescado: "bg-sky-50",
-  Leguminosas: "bg-orange-50", Ensalada: "bg-green-50", "Sopa/Curry": "bg-yellow-50",
-  "Granos/Pasta": "bg-stone-100", Verduras: "bg-lime-50", Postre: "bg-pink-50",
-  Desayuno: "bg-violet-50", "Pan/Masa": "bg-amber-50", "Salsas/Dips": "bg-rose-50",
-  Untables: "bg-orange-50",
+const TYPE_TINT: Record<string, string> = {
+  Aves: "#fdeede", Carne: "#f8e3dd", Pescado: "#e6eef0", Leguminosas: "#f4e6d6",
+  Ensalada: "#e9f0df", "Sopa/Curry": "#fbeed3", "Granos/Pasta": "#f0ebe0",
+  Verduras: "#eaf0dd", Postre: "#f8e6ee", Desayuno: "#efe9f2", "Pan/Masa": "#f3e7d6",
+  "Salsas/Dips": "#f8e2da", Untables: "#f4e6d6",
 };
 
 function uniqSorted(values: string[]): string[] {
@@ -19,35 +18,23 @@ function uniqSorted(values: string[]): string[] {
 }
 
 function Stars({ n }: { n: number | null }) {
-  if (!n) return <span className="text-xs text-neutral-400">sin calificar</span>;
+  if (!n) return null;
   return (
-    <span aria-label={`${n} de 5`} className="text-amber-500">
+    <span className="text-[13px] tracking-tight text-accent" aria-label={`${n} de 5`}>
       {"★".repeat(n)}
-      <span className="text-neutral-300">{"★".repeat(5 - n)}</span>
+      <span className="text-line">{"★".repeat(5 - n)}</span>
     </span>
   );
 }
 
-function Chip({
-  label, active, onClick,
-}: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-md border px-2.5 py-1 text-xs ${
-        active
-          ? "border-blue-500 bg-blue-50 text-blue-700"
-          : "border-neutral-200 text-neutral-600 hover:bg-neutral-50"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
 export function LibraryClient({
-  recipes, weekIds,
-}: { recipes: Recipe[]; weekIds: string[] }) {
+  recipes, weekIds, allCollections, allTags,
+}: {
+  recipes: Recipe[];
+  weekIds: string[];
+  allCollections: string[];
+  allTags: string[];
+}) {
   const [, startWeek] = useTransition();
   const [week, setWeek] = useState<Set<string>>(new Set(weekIds));
   const [f, setF] = useState<FilterState>({
@@ -70,15 +57,6 @@ export function LibraryClient({
     () => uniqSorted(recipes.map((r) => r.type).filter(Boolean) as string[]),
     [recipes],
   );
-  const allCollections = useMemo(
-    () => uniqSorted(recipes.flatMap((r) => r.collections)),
-    [recipes],
-  );
-  const allTags = useMemo(
-    () => uniqSorted(recipes.flatMap((r) => r.tags)),
-    [recipes],
-  );
-
   const filtered = useMemo(() => applyFilters(recipes, f), [recipes, f]);
 
   function toggle(facet: "types" | "collections" | "tags", value: string) {
@@ -86,69 +64,54 @@ export function LibraryClient({
       const has = prev[facet].includes(value);
       return {
         ...prev,
-        [facet]: has
-          ? prev[facet].filter((v) => v !== value)
-          : [...prev[facet], value],
+        [facet]: has ? prev[facet].filter((v) => v !== value) : [...prev[facet], value],
       };
     });
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-5 py-6">
-      <header className="flex items-baseline justify-between border-b border-neutral-200 pb-3">
-        <h1 className="text-2xl font-medium">Recetas</h1>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-neutral-500">
-            {filtered.length} de {recipes.length}
-          </span>
-          <Link
-            href="/semana"
-            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
-          >
-            Esta semana ({week.size})
+    <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
+        <div>
+          <h1 className="text-4xl font-medium tracking-tight">
+            Recetas<span className="text-accent">.</span>
+          </h1>
+          <p className="mt-1 text-sm text-muted">
+            {filtered.length} {filtered.length === 1 ? "receta" : "recetas"}
+            {filtered.length !== recipes.length ? ` de ${recipes.length}` : ""}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/semana" className="btn btn-ghost">
+            Esta semana · {week.size}
           </Link>
-          <Link
-            href="/agregar"
-            className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm text-white"
-          >
-            + Agregar
+          <Link href="/agregar" className="btn btn-primary">
+            Agregar receta
           </Link>
         </div>
       </header>
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-6 space-y-3">
         <input
           value={f.q}
           onChange={(e) => setF({ ...f, q: e.target.value })}
-          placeholder="Buscar recetas o ingredientes..."
-          className="w-full rounded-md border border-neutral-300 px-3 py-2 outline-none focus:border-neutral-500"
+          placeholder="Buscar por nombre o ingrediente…"
+          className="input max-w-md"
         />
-        {allCollections.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-neutral-400">Colección</span>
-            {allCollections.map((c) => (
-              <Chip key={c} label={c} active={f.collections.includes(c)}
-                onClick={() => toggle("collections", c)} />
-            ))}
-          </div>
-        )}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-neutral-400">Tipo</span>
-          {allTypes.map((t) => (
-            <Chip key={t} label={t} active={f.types.includes(t)}
-              onClick={() => toggle("types", t)} />
-          ))}
-        </div>
+        <FilterRow label="Colección" options={allCollections} active={f.collections}
+          onToggle={(v) => toggle("collections", v)} />
+        <FilterRow label="Tipo" options={allTypes} active={f.types}
+          onToggle={(v) => toggle("types", v)} />
         {allTags.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-neutral-400">Etiqueta</span>
+            <span className="w-20 shrink-0 text-xs uppercase tracking-wide text-muted">Etiqueta</span>
             {allTags.map((t) => (
-              <Chip key={t} label={t} active={f.tags.includes(t)}
-                onClick={() => toggle("tags", t)} />
+              <button key={t} className="chip" data-on={f.tags.includes(t) || undefined}
+                onClick={() => toggle("tags", t)}>{t}</button>
             ))}
             <button
               onClick={() => setF({ ...f, mode: f.mode === "all" ? "any" : "all" })}
-              className="ml-1 rounded-md border border-neutral-200 px-2 py-1 text-xs text-neutral-500"
+              className="ml-1 text-xs text-muted underline decoration-dotted underline-offset-2 hover:text-ink"
             >
               {f.mode === "all" ? "coincidir todas" : "coincidir cualquiera"}
             </button>
@@ -156,55 +119,70 @@ export function LibraryClient({
         )}
       </div>
 
-      <div className="mt-5 grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-3">
+      <div className="mt-7 grid grid-cols-[repeat(auto-fill,minmax(195px,1fr))] gap-4">
         {filtered.map((r) => (
-          <Link key={r.id} href={`/recipe/${r.id}`} className="block rounded-xl border border-neutral-200 p-2.5 hover:border-neutral-400">
-            <div className={`relative flex h-24 items-center justify-center overflow-hidden rounded-md text-4xl ${TYPE_BG[r.type ?? ""] ?? "bg-neutral-100"}`}>
+          <Link key={r.id} href={`/recipe/${r.id}`} className="card group block overflow-hidden">
+            <div
+              className="relative flex h-32 items-center justify-center overflow-hidden text-5xl"
+              style={{ background: TYPE_TINT[r.type ?? ""] ?? "var(--color-surface)" }}
+            >
+              {r.image_url ? (
+                <img src={r.image_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              ) : (
+                <span className="opacity-80">{r.emoji ?? "🍽️"}</span>
+              )}
               <button
                 onClick={(e) => toggleWeekLocal(r.id, e)}
-                className={`absolute right-1 top-1 z-10 rounded-md px-1.5 py-0.5 text-[11px] ${
+                className={`absolute right-2 top-2 z-10 rounded-full px-2 py-0.5 text-[11px] font-medium backdrop-blur transition-colors ${
                   week.has(r.id)
-                    ? "bg-blue-600 text-white"
-                    : "border border-neutral-200 bg-white/90 text-neutral-600"
+                    ? "bg-accent text-white"
+                    : "bg-white/85 text-ink hover:bg-white"
                 }`}
               >
-                {week.has(r.id) ? "✓ sem" : "+ sem"}
+                {week.has(r.id) ? "✓ semana" : "+ semana"}
               </button>
-              {r.emoji ?? "🍽️"}
-              {r.image_url && (
-                <img
-                  src={r.image_url}
-                  alt=""
-                  className="absolute inset-0 h-full w-full object-cover"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                />
-              )}
             </div>
-            <div className="mt-2 text-sm font-medium leading-tight">{r.title}</div>
-            <div className="mt-1 text-sm"><Stars n={r.rating} /></div>
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              {r.type && (
-                <span className="rounded-md bg-neutral-100 px-1.5 py-0.5 text-[11px] text-neutral-600">
-                  {r.type}
-                </span>
-              )}
-              {r.tags.slice(0, 2).map((t) => (
-                <span key={t} className="rounded-md bg-neutral-100 px-1.5 py-0.5 text-[11px] text-neutral-500">
-                  {t}
-                </span>
-              ))}
-            </div>
-            {r.fridge_life_days != null && (
-              <div className="mt-1.5 text-[11px] text-neutral-400">
-                aguanta {r.fridge_life_days} días
+            <div className="p-3">
+              <div className="font-display text-[15px] font-medium leading-snug">{r.title}</div>
+              <div className="mt-1 flex min-h-4 items-center gap-2">
+                <Stars n={r.rating} />
+                {r.fridge_life_days != null && (
+                  <span className="text-[11px] text-muted">{r.fridge_life_days} días</span>
+                )}
               </div>
-            )}
+              <div className="mt-2 flex flex-wrap gap-1">
+                {r.type && (
+                  <span className="rounded-full bg-surface px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
+                    {r.type}
+                  </span>
+                )}
+                {r.tags.slice(0, 2).map((t) => (
+                  <span key={t} className="rounded-full bg-surface px-2 py-0.5 text-[10px] text-muted">{t}</span>
+                ))}
+              </div>
+            </div>
           </Link>
         ))}
       </div>
       {filtered.length === 0 && (
-        <p className="mt-10 text-center text-neutral-400">Nada coincide con esos filtros.</p>
+        <p className="mt-16 text-center text-muted">Nada coincide con esos filtros.</p>
       )}
     </main>
+  );
+}
+
+function FilterRow({
+  label, options, active, onToggle,
+}: { label: string; options: string[]; active: string[]; onToggle: (v: string) => void }) {
+  if (options.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="w-20 shrink-0 text-xs uppercase tracking-wide text-muted">{label}</span>
+      {options.map((o) => (
+        <button key={o} className="chip" data-on={active.includes(o) || undefined} onClick={() => onToggle(o)}>
+          {o}
+        </button>
+      ))}
+    </div>
   );
 }
