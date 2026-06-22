@@ -9,7 +9,7 @@ import {
 
 type Group = { label: string | null; items: string[] };
 type Recipe = {
-  id: string; title: string; emoji: string | null; type: string | null;
+  id: string; title: string; emoji: string | null; image_url: string | null; type: string | null;
   porciones: string | null; fridge_life_days: number | null; rating: number | null;
   tried: boolean; times_cooked: number; source_url: string | null;
   ingredients: Group[]; steps: Group[];
@@ -42,8 +42,16 @@ export function RecipeClient({
         ← Biblioteca
       </Link>
 
-      <div className={`mt-3 flex h-40 items-center justify-center rounded-xl bg-neutral-100 text-6xl`}>
+      <div className="relative mt-3 flex h-40 items-center justify-center overflow-hidden rounded-xl bg-neutral-100 text-6xl">
         {recipe.emoji ?? "🍽️"}
+        {recipe.image_url && (
+          <img
+            src={recipe.image_url}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+          />
+        )}
       </div>
 
       <h1 className="mt-3 text-2xl font-medium">{recipe.title}</h1>

@@ -24,6 +24,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     id: r.id as string,
     title: r.title as string,
     emoji: r.emoji as string | null,
+    image_url: r.image_url as string | null,
     type: r.type as string | null,
     porciones: r.porciones as string | null,
     fridge_life_days: r.fridge_life_days as number | null,
