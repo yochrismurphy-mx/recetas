@@ -1,4 +1,5 @@
 import { getServerClient } from "@/lib/supabase";
+import { currentPlanId } from "@/lib/plan";
 import type { Recipe } from "@/lib/types";
 import { LibraryClient } from "./library-client";
 
@@ -34,5 +35,15 @@ export default async function Home() {
     tags: (row.recipe_tags ?? []).map((x: any) => x.tags?.name).filter(Boolean),
   }));
 
-  return <LibraryClient recipes={recipes} />;
+  const planId = await currentPlanId(supabase);
+  let weekIds: string[] = [];
+  if (planId) {
+    const { data: items } = await supabase
+      .from("plan_items")
+      .select("recipe_id")
+      .eq("plan_id", planId);
+    weekIds = (items ?? []).map((x: any) => x.recipe_id as string);
+  }
+
+  return <LibraryClient recipes={recipes} weekIds={weekIds} />;
 }

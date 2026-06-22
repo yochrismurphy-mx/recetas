@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import type { Recipe, FilterState } from "@/lib/types";
 import { applyFilters } from "@/lib/filters";
+import { toggleWeek } from "./semana/actions";
 
 const TYPE_BG: Record<string, string> = {
   Aves: "bg-amber-50", Carne: "bg-red-50", Pescado: "bg-sky-50",
@@ -44,10 +45,26 @@ function Chip({
   );
 }
 
-export function LibraryClient({ recipes }: { recipes: Recipe[] }) {
+export function LibraryClient({
+  recipes, weekIds,
+}: { recipes: Recipe[]; weekIds: string[] }) {
+  const [, startWeek] = useTransition();
+  const [week, setWeek] = useState<Set<string>>(new Set(weekIds));
   const [f, setF] = useState<FilterState>({
     q: "", types: [], collections: [], tags: [], mode: "all",
   });
+
+  function toggleWeekLocal(id: string, e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setWeek((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+    startWeek(() => toggleWeek(id));
+  }
 
   const allTypes = useMemo(
     () => uniqSorted(recipes.map((r) => r.type).filter(Boolean) as string[]),
@@ -84,6 +101,12 @@ export function LibraryClient({ recipes }: { recipes: Recipe[] }) {
           <span className="text-sm text-neutral-500">
             {filtered.length} de {recipes.length}
           </span>
+          <Link
+            href="/semana"
+            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+          >
+            Esta semana ({week.size})
+          </Link>
           <Link
             href="/agregar"
             className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm text-white"
@@ -137,6 +160,16 @@ export function LibraryClient({ recipes }: { recipes: Recipe[] }) {
         {filtered.map((r) => (
           <Link key={r.id} href={`/recipe/${r.id}`} className="block rounded-xl border border-neutral-200 p-2.5 hover:border-neutral-400">
             <div className={`relative flex h-24 items-center justify-center overflow-hidden rounded-md text-4xl ${TYPE_BG[r.type ?? ""] ?? "bg-neutral-100"}`}>
+              <button
+                onClick={(e) => toggleWeekLocal(r.id, e)}
+                className={`absolute right-1 top-1 z-10 rounded-md px-1.5 py-0.5 text-[11px] ${
+                  week.has(r.id)
+                    ? "bg-blue-600 text-white"
+                    : "border border-neutral-200 bg-white/90 text-neutral-600"
+                }`}
+              >
+                {week.has(r.id) ? "✓ sem" : "+ sem"}
+              </button>
               {r.emoji ?? "🍽️"}
               {r.image_url && (
                 <img
