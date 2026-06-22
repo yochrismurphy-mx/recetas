@@ -1,0 +1,74 @@
+"use server";
+
+import { getServerClient } from "@/lib/supabase";
+import { revalidatePath } from "next/cache";
+
+async function touch(id: string) {
+  revalidatePath(`/recipe/${id}`);
+  revalidatePath("/");
+}
+
+export async function setRating(id: string, rating: number | null) {
+  const s = getServerClient();
+  await s.from("recipes").update({ rating }).eq("id", id);
+  await touch(id);
+}
+
+export async function markCooked(id: string) {
+  const s = getServerClient();
+  const { data } = await s.from("recipes").select("times_cooked").eq("id", id).single();
+  await s
+    .from("recipes")
+    .update({
+      times_cooked: (data?.times_cooked ?? 0) + 1,
+      tried: true,
+      last_cooked: new Date().toISOString().slice(0, 10),
+    })
+    .eq("id", id);
+  await touch(id);
+}
+
+export async function addNote(id: string, body: string) {
+  if (!body.trim()) return;
+  const s = getServerClient();
+  await s.from("recipe_notes").insert({ recipe_id: id, body: body.trim() });
+  await touch(id);
+}
+
+export async function setCollection(id: string, collectionId: string, on: boolean) {
+  const s = getServerClient();
+  if (on) await s.from("recipe_collections").upsert({ recipe_id: id, collection_id: collectionId });
+  else await s.from("recipe_collections").delete().eq("recipe_id", id).eq("collection_id", collectionId);
+  await touch(id);
+}
+
+export async function setTag(id: string, tagId: string, on: boolean) {
+  const s = getServerClient();
+  if (on) await s.from("recipe_tags").upsert({ recipe_id: id, tag_id: tagId });
+  else await s.from("recipe_tags").delete().eq("recipe_id", id).eq("tag_id", tagId);
+  await touch(id);
+}
+
+export async function addCollection(id: string, name: string) {
+  if (!name.trim()) return;
+  const s = getServerClient();
+  const { data } = await s
+    .from("collections")
+    .upsert({ name: name.trim() }, { onConflict: "name" })
+    .select("id")
+    .single();
+  if (data) await s.from("recipe_collections").upsert({ recipe_id: id, collection_id: data.id });
+  await touch(id);
+}
+
+export async function addTag(id: string, name: string) {
+  if (!name.trim()) return;
+  const s = getServerClient();
+  const { data } = await s
+    .from("tags")
+    .upsert({ name: name.trim() }, { onConflict: "name" })
+    .select("id")
+    .single();
+  if (data) await s.from("recipe_tags").upsert({ recipe_id: id, tag_id: data.id });
+  await touch(id);
+}

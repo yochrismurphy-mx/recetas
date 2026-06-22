@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import type { Recipe, FilterState } from "@/lib/types";
 import { applyFilters } from "@/lib/filters";
 
@@ -126,7 +127,7 @@ export function LibraryClient({ recipes }: { recipes: Recipe[] }) {
 
       <div className="mt-5 grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-3">
         {filtered.map((r) => (
-          <div key={r.id} className="rounded-xl border border-neutral-200 p-2.5">
+          <Link key={r.id} href={`/recipe/${r.id}`} className="block rounded-xl border border-neutral-200 p-2.5 hover:border-neutral-400">
             <div className={`flex h-24 items-center justify-center rounded-md text-4xl ${TYPE_BG[r.type ?? ""] ?? "bg-neutral-100"}`}>
               {r.emoji ?? "🍽️"}
             </div>
@@ -149,7 +150,7 @@ export function LibraryClient({ recipes }: { recipes: Recipe[] }) {
                 aguanta {r.fridge_life_days} días
               </div>
             )}
-          </div>
+          </Link>
         ))}
       </div>
       {filtered.length === 0 && (
