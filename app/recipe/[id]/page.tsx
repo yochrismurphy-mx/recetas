@@ -1,4 +1,5 @@
 import { getServerClient } from "@/lib/supabase";
+import { currentPlanId } from "@/lib/plan";
 import { notFound } from "next/navigation";
 import { RecipeClient } from "./recipe-client";
 
@@ -41,9 +42,22 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       .map((n) => ({ id: n.id as string, body: n.body as string })),
   };
 
+  const planId = await currentPlanId(s);
+  let inWeek = false;
+  if (planId) {
+    const { data: pi } = await s
+      .from("plan_items")
+      .select("id")
+      .eq("plan_id", planId)
+      .eq("recipe_id", id)
+      .maybeSingle();
+    inWeek = !!pi;
+  }
+
   return (
     <RecipeClient
       recipe={recipe}
+      inWeek={inWeek}
       allCollections={(allCollections ?? []) as { id: string; name: string }[]}
       allTags={(allTags ?? []) as { id: string; name: string }[]}
     />

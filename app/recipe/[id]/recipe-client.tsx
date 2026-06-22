@@ -7,6 +7,7 @@ import {
   setRating, markCooked, addNote, setCollection, setTag, addCollection, addTag,
   deleteRecipe, updateRecipe,
 } from "./actions";
+import { toggleWeek } from "../../semana/actions";
 
 type Group = { label: string | null; items: string[] };
 type Recipe = {
@@ -43,9 +44,10 @@ function textToGroups(text: string): Group[] {
 }
 
 export function RecipeClient({
-  recipe, allCollections, allTags,
-}: { recipe: Recipe; allCollections: Opt[]; allTags: Opt[] }) {
+  recipe, inWeek, allCollections, allTags,
+}: { recipe: Recipe; inWeek: boolean; allCollections: Opt[]; allTags: Opt[] }) {
   const router = useRouter();
+  const [inWk, setInWk] = useState(inWeek);
   const [pending, start] = useTransition();
   const [note, setNote] = useState("");
   const [newColl, setNewColl] = useState("");
@@ -163,6 +165,13 @@ export function RecipeClient({
       ) : (
         <>
           <h1 className="mt-4 text-3xl font-medium leading-tight tracking-tight">{recipe.title}</h1>
+          {recipe.type && (
+            <div className="mt-2">
+              <span className="rounded-full bg-surface px-2.5 py-0.5 text-[11px] uppercase tracking-wide text-muted">
+                {recipe.type}
+              </span>
+            </div>
+          )}
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <div className="flex text-2xl leading-none">
@@ -183,6 +192,13 @@ export function RecipeClient({
                 );
               })}
             </div>
+            <button
+              onClick={() => { setInWk(!inWk); start(() => toggleWeek(recipe.id)); }}
+              disabled={pending}
+              className={inWk ? "btn btn-primary" : "btn btn-ghost"}
+            >
+              {inWk ? "✓ en la semana" : "+ a la semana"}
+            </button>
             <button onClick={() => run(() => markCooked(recipe.id))} disabled={pending} className="btn btn-ghost">
               Marcar cocinada{recipe.times_cooked ? ` · ${recipe.times_cooked}` : ""}
             </button>
@@ -239,6 +255,9 @@ export function RecipeClient({
       </Section>
 
       <Section title="Etiquetas">
+        <p className="mb-2 text-xs text-muted">
+          Etiquetas libres (cocina, dieta, etc.). El tipo de platillo se edita arriba con “Editar”.
+        </p>
         <div className="flex flex-wrap gap-1.5">
           {allTags.map((t) => (
             <button key={t.id} className="chip" data-on={tagOn.has(t.id) || undefined} disabled={pending}
