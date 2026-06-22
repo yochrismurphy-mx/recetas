@@ -90,26 +90,16 @@ export function LibraryClient({
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
-      <section className="relative overflow-hidden rounded-2xl border border-line">
-        <img
-          src="/img/home-hero.jpg"
-          alt="Cocinando en casa"
-          className="h-48 w-full object-cover object-[center_28%] sm:h-60"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/30 to-ink/5" />
-        <div className="absolute inset-x-0 bottom-0 p-5 sm:p-7">
-          <h1 className="font-display text-4xl font-medium tracking-tight text-paper sm:text-5xl">
-            Recetas<span className="text-accent">.</span>
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
+        <div>
+          <h1 className="font-display text-3xl font-medium tracking-tight sm:text-4xl">
+            La cocina de Norma y Chris<span className="text-accent">.</span>
           </h1>
-          <p className="mt-1 text-sm text-paper/85">Lo que cocinamos en casa</p>
+          <p className="mt-1 text-sm text-muted">
+            {filtered.length} {filtered.length === 1 ? "receta" : "recetas"}
+            {filtered.length !== recipes.length ? ` de ${recipes.length}` : ""}
+          </p>
         </div>
-      </section>
-
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-5">
-        <p className="text-sm text-muted">
-          {filtered.length} {filtered.length === 1 ? "receta" : "recetas"}
-          {filtered.length !== recipes.length ? ` de ${recipes.length}` : ""}
-        </p>
         <div className="flex items-center gap-2">
           <Link href="/semana" className="btn btn-ghost">
             Esta semana · {week.size}
@@ -121,7 +111,7 @@ export function LibraryClient({
             Agregar receta
           </Link>
         </div>
-      </div>
+      </header>
 
       <div className="mt-6 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
