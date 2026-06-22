@@ -33,6 +33,20 @@ export function RecipeClient({
       router.refresh();
     });
 
+  const [uploading, setUploading] = useState(false);
+  async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("recipeId", recipe.id);
+    await fetch("/api/upload", { method: "POST", body: fd });
+    setUploading(false);
+    e.target.value = "";
+    router.refresh();
+  }
+
   const collOn = new Set(recipe.collectionIds);
   const tagOn = new Set(recipe.tagIds);
 
@@ -53,6 +67,11 @@ export function RecipeClient({
           />
         )}
       </div>
+
+      <label className="mt-2 inline-block cursor-pointer text-sm text-blue-600 hover:underline">
+        {uploading ? "Subiendo..." : recipe.image_url ? "Cambiar foto" : "Subir foto"}
+        <input type="file" accept="image/*" className="hidden" onChange={onPickFile} disabled={uploading} />
+      </label>
 
       <h1 className="mt-3 text-2xl font-medium">{recipe.title}</h1>
 
