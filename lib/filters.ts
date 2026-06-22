@@ -2,6 +2,14 @@ import type { Recipe, FilterState } from "./types";
 
 type Chip = { facet: "type" | "collection" | "tag"; value: string };
 
+export const FRIDGE_BUCKETS: { key: string; label: string; test: (d: number) => boolean }[] = [
+  { key: "short", label: "≤3 días", test: (d) => d <= 3 },
+  { key: "mid", label: "4–6 días", test: (d) => d >= 4 && d <= 6 },
+  { key: "long", label: "7+ días", test: (d) => d >= 7 },
+];
+
+export const RATING_OPTIONS = [5, 4, 3];
+
 /** A recipe is incomplete when it has no ingredient text or no step text. */
 export function recipeIncomplete(r: Recipe): boolean {
   const hasText = (groups: Recipe["ingredients"]) =>
@@ -37,6 +45,13 @@ export function applyFilters(recipes: Recipe[], f: FilterState): Recipe[] {
       if (!hay.includes(q)) return false;
     }
     if (f.incompleteOnly && !recipeIncomplete(r)) return false;
+    if (f.minRating != null && (r.rating == null || r.rating < f.minRating)) return false;
+    if (f.status.length > 0 && !f.status.includes(r.cook_status)) return false;
+    if (f.fridge.length > 0) {
+      const d = r.fridge_life_days;
+      const ok = d != null && f.fridge.some((k) => FRIDGE_BUCKETS.find((b) => b.key === k)?.test(d));
+      if (!ok) return false;
+    }
     if (chips.length === 0) return true;
     return f.mode === "any"
       ? chips.some((c) => matches(r, c))

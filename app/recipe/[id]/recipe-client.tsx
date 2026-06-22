@@ -4,16 +4,17 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  setRating, markCooked, addNote, setCollection, setTag, addCollection, addTag,
+  setRating, setCookStatus, addNote, setCollection, setTag, addCollection, addTag,
   deleteRecipe, updateRecipe,
 } from "./actions";
 import { toggleWeek } from "../../semana/actions";
+import { COOK_STATUS_LABELS, type CookStatus } from "@/lib/types";
 
 type Group = { label: string | null; items: string[] };
 type Recipe = {
   id: string; title: string; emoji: string | null; image_url: string | null; type: string | null;
   porciones: string | null; fridge_life_days: number | null; rating: number | null;
-  tried: boolean; times_cooked: number; source_url: string | null;
+  tried: boolean; times_cooked: number; cook_status: CookStatus; source_url: string | null;
   ingredients: Group[]; steps: Group[];
   collectionIds: string[]; tagIds: string[];
   notes: { id: string; body: string }[];
@@ -61,6 +62,7 @@ export function RecipeClient({
   const [eType, setEType] = useState(recipe.type ?? "Sopa/Curry");
   const [ePorc, setEPorc] = useState(recipe.porciones ?? "");
   const [eFridge, setEFridge] = useState(recipe.fridge_life_days?.toString() ?? "");
+  const [eSource, setESource] = useState(recipe.source_url ?? "");
   const [eIng, setEIng] = useState(groupsToText(recipe.ingredients));
   const [eSteps, setESteps] = useState(groupsToText(recipe.steps));
 
@@ -87,6 +89,7 @@ export function RecipeClient({
         type: eType,
         porciones: ePorc.trim() || null,
         fridge_life_days: eFridge.trim() ? Number(eFridge) : null,
+        source_url: eSource.trim() || null,
         ingredients: textToGroups(eIng),
         steps: textToGroups(eSteps),
       });
@@ -147,6 +150,13 @@ export function RecipeClient({
             <input value={ePorc} onChange={(e) => setEPorc(e.target.value)} placeholder="porciones" className="input w-32" />
             <input value={eFridge} onChange={(e) => setEFridge(e.target.value)} placeholder="días en refri" inputMode="numeric" className="input w-32" />
           </div>
+          <input
+            value={eSource}
+            onChange={(e) => setESource(e.target.value)}
+            placeholder="Liga / fuente (https://…)"
+            inputMode="url"
+            className="input"
+          />
           <div>
             <label className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Ingredientes</label>
             <p className="mb-1 text-xs text-muted">Un ingrediente por línea. Empieza una línea con “# ” para un subgrupo.</p>
@@ -199,9 +209,21 @@ export function RecipeClient({
             >
               {inWk ? "✓ en la semana" : "+ a la semana"}
             </button>
-            <button onClick={() => run(() => markCooked(recipe.id))} disabled={pending} className="btn btn-ghost">
-              Marcar cocinada{recipe.times_cooked ? ` · ${recipe.times_cooked}` : ""}
-            </button>
+          </div>
+
+          <div className="mt-3 inline-flex rounded-lg border border-line p-0.5">
+            {(["sin_probar", "cocinada", "cabecera"] as CookStatus[]).map((st) => (
+              <button
+                key={st}
+                disabled={pending}
+                onClick={() => run(() => setCookStatus(recipe.id, st))}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  recipe.cook_status === st ? "bg-accent text-white" : "text-muted hover:text-ink"
+                }`}
+              >
+                {COOK_STATUS_LABELS[st]}
+              </button>
+            ))}
           </div>
 
           <p className="mt-3 text-sm text-muted">

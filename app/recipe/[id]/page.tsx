@@ -32,6 +32,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     rating: r.rating as number | null,
     tried: r.tried as boolean,
     times_cooked: r.times_cooked as number,
+    cook_status: (r.cook_status ?? "sin_probar") as "sin_probar" | "cocinada" | "cabecera",
     source_url: r.source_url as string | null,
     ingredients: (r.ingredients ?? []) as { label: string | null; items: string[] }[],
     steps: (r.steps ?? []) as { label: string | null; items: string[] }[],

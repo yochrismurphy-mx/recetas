@@ -13,7 +13,8 @@ create table if not exists recipes (
   fridge_life_days int,
   rating int check (rating between 1 and 5),
   tried boolean not null default false,
-  times_cooked int not null default 0,
+  times_cooked int not null default 0,        -- legacy; superseded by cook_status
+  cook_status text not null default 'sin_probar',  -- 'sin_probar' | 'cocinada' | 'cabecera'
   last_cooked date,
   source_url text,
   image_url text,

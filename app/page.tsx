@@ -24,6 +24,7 @@ export default async function Home() {
     rating: row.rating,
     tried: row.tried,
     times_cooked: row.times_cooked,
+    cook_status: row.cook_status ?? "sin_probar",
     last_cooked: row.last_cooked,
     source_url: row.source_url,
     image_url: row.image_url,

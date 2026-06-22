@@ -14,17 +14,14 @@ export async function setRating(id: string, rating: number | null) {
   await touch(id);
 }
 
-export async function markCooked(id: string) {
+export async function setCookStatus(
+  id: string,
+  status: "sin_probar" | "cocinada" | "cabecera",
+) {
   const s = getServerClient();
-  const { data } = await s.from("recipes").select("times_cooked").eq("id", id).single();
-  await s
-    .from("recipes")
-    .update({
-      times_cooked: (data?.times_cooked ?? 0) + 1,
-      tried: true,
-      last_cooked: new Date().toISOString().slice(0, 10),
-    })
-    .eq("id", id);
+  const update: Record<string, unknown> = { cook_status: status, tried: status !== "sin_probar" };
+  if (status !== "sin_probar") update.last_cooked = new Date().toISOString().slice(0, 10);
+  await s.from("recipes").update(update).eq("id", id);
   await touch(id);
 }
 
@@ -74,6 +71,7 @@ export async function updateRecipe(
     type: string;
     porciones: string | null;
     fridge_life_days: number | null;
+    source_url: string | null;
     ingredients: { label: string | null; items: string[] }[];
     steps: { label: string | null; items: string[] }[];
   },
