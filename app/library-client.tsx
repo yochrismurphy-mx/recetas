@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import type { Recipe, FilterState } from "@/lib/types";
-import { applyFilters } from "@/lib/filters";
+import { applyFilters, recipeIncomplete } from "@/lib/filters";
 import { toggleWeek } from "./semana/actions";
 
 const TYPE_TINT: Record<string, string> = {
@@ -38,8 +38,12 @@ export function LibraryClient({
   const [, startWeek] = useTransition();
   const [week, setWeek] = useState<Set<string>>(new Set(weekIds));
   const [f, setF] = useState<FilterState>({
-    q: "", types: [], collections: [], tags: [], mode: "all",
+    q: "", types: [], collections: [], tags: [], mode: "all", incompleteOnly: false,
   });
+  const incompleteCount = useMemo(
+    () => recipes.filter(recipeIncomplete).length,
+    [recipes],
+  );
 
   function toggleWeekLocal(id: string, e: React.MouseEvent) {
     e.preventDefault();
@@ -95,12 +99,23 @@ export function LibraryClient({
       </header>
 
       <div className="mt-6 space-y-3">
-        <input
-          value={f.q}
-          onChange={(e) => setF({ ...f, q: e.target.value })}
-          placeholder="Buscar por nombre o ingrediente…"
-          className="input max-w-md"
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={f.q}
+            onChange={(e) => setF({ ...f, q: e.target.value })}
+            placeholder="Buscar por nombre o ingrediente…"
+            className="input max-w-md"
+          />
+          {incompleteCount > 0 && (
+            <button
+              className="chip"
+              data-on={f.incompleteOnly || undefined}
+              onClick={() => setF({ ...f, incompleteOnly: !f.incompleteOnly })}
+            >
+              Por completar · {incompleteCount}
+            </button>
+          )}
+        </div>
         <FilterRow label="Colección" options={allCollections} active={f.collections}
           onToggle={(v) => toggle("collections", v)} />
         <FilterRow label="Tipo" options={allTypes} active={f.types}
@@ -133,6 +148,11 @@ export function LibraryClient({
                 <img src={r.image_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
               ) : (
                 <span className="opacity-80">{r.emoji ?? "🍽️"}</span>
+              )}
+              {recipeIncomplete(r) && (
+                <span className="absolute left-2 top-2 z-10 rounded-full bg-ink/80 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur">
+                  Por completar
+                </span>
               )}
               <button
                 onClick={(e) => toggleWeekLocal(r.id, e)}

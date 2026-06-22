@@ -26,4 +26,5 @@ export type FilterState = {
   collections: string[];
   tags: string[];
   mode: "all" | "any";
+  incompleteOnly: boolean;
 };

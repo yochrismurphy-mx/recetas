@@ -2,6 +2,13 @@ import type { Recipe, FilterState } from "./types";
 
 type Chip = { facet: "type" | "collection" | "tag"; value: string };
 
+/** A recipe is incomplete when it has no ingredient text or no step text. */
+export function recipeIncomplete(r: Recipe): boolean {
+  const hasText = (groups: Recipe["ingredients"]) =>
+    groups.some((g) => g.items.some((s) => s && s.trim().length > 0));
+  return !hasText(r.ingredients) || !hasText(r.steps);
+}
+
 function matches(r: Recipe, c: Chip): boolean {
   if (c.facet === "type") return r.type === c.value;
   if (c.facet === "collection") return r.collections.includes(c.value);
@@ -29,6 +36,7 @@ export function applyFilters(recipes: Recipe[], f: FilterState): Recipe[] {
       ).toLowerCase();
       if (!hay.includes(q)) return false;
     }
+    if (f.incompleteOnly && !recipeIncomplete(r)) return false;
     if (chips.length === 0) return true;
     return f.mode === "any"
       ? chips.some((c) => matches(r, c))
