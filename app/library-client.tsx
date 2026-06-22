@@ -119,7 +119,7 @@ export function LibraryClient({
         <FilterRow label="Colección" options={allCollections} active={f.collections}
           onToggle={(v) => toggle("collections", v)} />
         <FilterRow label="Tipo" options={allTypes} active={f.types}
-          onToggle={(v) => toggle("types", v)} />
+          onToggle={(v) => toggle("types", v)} square />
         {allTags.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="w-20 shrink-0 text-xs uppercase tracking-wide text-muted">Etiqueta</span>
@@ -173,15 +173,21 @@ export function LibraryClient({
                   <span className="text-[11px] text-muted">{r.fridge_life_days} días</span>
                 )}
               </div>
-              <div className="mt-2 flex flex-wrap gap-1">
+              <div className="mt-2 space-y-1.5">
                 {r.type && (
-                  <span className="rounded-full bg-surface px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
-                    {r.type}
-                  </span>
+                  <div>
+                    <span className="inline-block rounded-md bg-accent-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-strong">
+                      {r.type}
+                    </span>
+                  </div>
                 )}
-                {r.tags.slice(0, 2).map((t) => (
-                  <span key={t} className="rounded-full bg-surface px-2 py-0.5 text-[10px] text-muted">{t}</span>
-                ))}
+                {r.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {r.tags.slice(0, 3).map((t) => (
+                      <span key={t} className="rounded-full border border-line px-2 py-0.5 text-[10px] text-muted">{t}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </Link>
@@ -195,14 +201,14 @@ export function LibraryClient({
 }
 
 function FilterRow({
-  label, options, active, onToggle,
-}: { label: string; options: string[]; active: string[]; onToggle: (v: string) => void }) {
+  label, options, active, onToggle, square,
+}: { label: string; options: string[]; active: string[]; onToggle: (v: string) => void; square?: boolean }) {
   if (options.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <span className="w-20 shrink-0 text-xs uppercase tracking-wide text-muted">{label}</span>
       {options.map((o) => (
-        <button key={o} className="chip" data-on={active.includes(o) || undefined} onClick={() => onToggle(o)}>
+        <button key={o} className={square ? "chip rounded-md" : "chip"} data-on={active.includes(o) || undefined} onClick={() => onToggle(o)}>
           {o}
         </button>
       ))}
