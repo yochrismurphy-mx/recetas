@@ -1,11 +1,38 @@
-export default function Home() {
-  return (
-    <main className="mx-auto max-w-5xl px-6 py-8">
-      <header className="flex items-baseline justify-between border-b border-neutral-200 pb-3">
-        <h1 className="text-2xl font-medium">Recetas</h1>
-        <span className="text-sm text-neutral-500">0 recetas</span>
-      </header>
-      <p className="mt-8 text-neutral-500">La biblioteca aparecerá aquí.</p>
-    </main>
-  );
+import { getServerClient } from "@/lib/supabase";
+import type { Recipe } from "@/lib/types";
+import { LibraryClient } from "./library-client";
+
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const supabase = getServerClient();
+  const { data, error } = await supabase
+    .from("recipes")
+    .select("*, recipe_collections(collections(name)), recipe_tags(tags(name))")
+    .order("title");
+  if (error) throw new Error(error.message);
+
+  const recipes: Recipe[] = (data ?? []).map((row: any) => ({
+    id: row.id,
+    title: row.title,
+    emoji: row.emoji,
+    type: row.type,
+    language: row.language,
+    porciones: row.porciones,
+    fridge_life_days: row.fridge_life_days,
+    rating: row.rating,
+    tried: row.tried,
+    times_cooked: row.times_cooked,
+    last_cooked: row.last_cooked,
+    source_url: row.source_url,
+    image_url: row.image_url,
+    ingredients: row.ingredients ?? [],
+    steps: row.steps ?? [],
+    collections: (row.recipe_collections ?? [])
+      .map((x: any) => x.collections?.name)
+      .filter(Boolean),
+    tags: (row.recipe_tags ?? []).map((x: any) => x.tags?.name).filter(Boolean),
+  }));
+
+  return <LibraryClient recipes={recipes} />;
 }

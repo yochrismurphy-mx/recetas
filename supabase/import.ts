@@ -1,13 +1,15 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { Client } from "pg";
+import { createClient } from "@supabase/supabase-js";
 
-const DB = process.env.DATABASE_URL;
-if (!DB) {
-  console.error("Set DATABASE_URL (Supabase connection string) before running.");
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!url || !key) {
+  console.error("Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
   process.exit(1);
 }
+const supabase = createClient(url, key, { auth: { persistSession: false } });
 
 const here = dirname(fileURLToPath(import.meta.url));
 const raw = JSON.parse(readFileSync(join(here, "seed", "recipes.json"), "utf8"));
@@ -43,50 +45,52 @@ function groupsOf(o: any, kind: "ing" | "step") {
 }
 
 async function main() {
-  const c = new Client({ connectionString: DB });
-  await c.connect();
-  const { rows } = await c.query(
-    "select id from collections where name = 'Personal'",
-  );
-  const personalId = rows[0].id;
+  const { data: coll, error: cErr } = await supabase
+    .from("collections")
+    .select("id")
+    .eq("name", "Personal")
+    .single();
+  if (cErr) throw cErr;
+  const personalId = coll.id;
+
   let inserted = 0;
   for (const o of recipes) {
     const type = resolveType(o);
     const emoji = TYPE_EMOJI[type] || o.emoji || null;
-    const r = await c.query(
-      `insert into recipes (title, emoji, type, porciones, source_url, ingredients, steps)
-       values ($1,$2,$3,$4,$5,$6,$7) returning id`,
-      [
-        o.title,
+    const { data: rec, error } = await supabase
+      .from("recipes")
+      .insert({
+        title: o.title,
         emoji,
         type,
-        o.porciones ?? null,
-        (o.source_urls && o.source_urls[0]) ?? null,
-        JSON.stringify(groupsOf(o, "ing")),
-        JSON.stringify(groupsOf(o, "step")),
-      ],
-    );
-    const recipeId = r.rows[0].id;
-    await c.query(
-      "insert into recipe_collections (recipe_id, collection_id) values ($1,$2) on conflict do nothing",
-      [recipeId, personalId],
-    );
-    for (const note of o.notes || []) {
-      if (note?.trim()) {
-        await c.query(
-          "insert into recipe_notes (recipe_id, body) values ($1,$2)",
-          [recipeId, note.trim()],
-        );
-      }
-    }
+        porciones: o.porciones ?? null,
+        source_url: (o.source_urls && o.source_urls[0]) ?? null,
+        ingredients: groupsOf(o, "ing"),
+        steps: groupsOf(o, "step"),
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+
+    await supabase
+      .from("recipe_collections")
+      .insert({ recipe_id: rec.id, collection_id: personalId });
+
+    const notes = (o.notes || [])
+      .filter((n: string) => n && n.trim())
+      .map((n: string) => ({ recipe_id: rec.id, body: n.trim() }));
+    if (notes.length) await supabase.from("recipe_notes").insert(notes);
+
     inserted++;
   }
-  const total = await c.query("select count(*)::int as n from recipes");
-  console.log(`Inserted ${inserted}. Recipes table now has ${total.rows[0].n}.`);
-  await c.end();
+
+  const { count } = await supabase
+    .from("recipes")
+    .select("*", { count: "exact", head: true });
+  console.log(`Inserted ${inserted}. Recipes table now has ${count}.`);
 }
 
 main().catch((e) => {
-  console.error(e);
+  console.error(e.message || e);
   process.exit(1);
 });

@@ -12,11 +12,18 @@ if (!DB) {
 const here = dirname(fileURLToPath(import.meta.url));
 const sql = readFileSync(join(here, "schema.sql"), "utf8");
 
-const c = new Client({ connectionString: DB });
-await c.connect();
-await c.query(sql);
-const t = await c.query(
-  "select table_name from information_schema.tables where table_schema='public' order by table_name",
-);
-console.log("Tables:", t.rows.map((r) => r.table_name).join(", "));
-await c.end();
+async function main() {
+  const c = new Client({ connectionString: DB, ssl: true });
+  await c.connect();
+  await c.query(sql);
+  const t = await c.query(
+    "select table_name from information_schema.tables where table_schema='public' order by table_name",
+  );
+  console.log("Tables:", t.rows.map((r) => r.table_name).join(", "));
+  await c.end();
+}
+
+main().catch((e) => {
+  console.error(e.message || e);
+  process.exit(1);
+});
