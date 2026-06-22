@@ -30,6 +30,21 @@ Schema:
 
 Translate everything to Spanish. Do not invent ingredients or steps. If the input is not a recipe, return {"error":"not a recipe"}.`;
 
+const SYSTEM_KEEP = `You parse a recipe (URL page text or pasted text) into clean structured JSON for a recipe app. Keep the recipe in its ORIGINAL language; do NOT translate. Output ONLY a valid JSON object, no markdown.
+
+Schema:
+{
+  "emoji": one emoji by dish type: 🍗 aves · 🥩 carne · 🐟 pescado · 🫘 leguminosas · 🥗 ensalada · 🍲 sopa/curry · 🍚 granos/pasta · 🥦 verduras · 🍮 postre · 🥣 desayuno · 🫓 pan/masa · 🫙 salsa/dip · 🥜 untable,
+  "title": dish name in its original language (trim),
+  "type": one of: Aves, Carne, Pescado, Leguminosas, Ensalada, Sopa/Curry, Granos/Pasta, Verduras, Postre, Desayuno, Pan/Masa, Salsas/Dips, Untables,
+  "porciones": e.g. "4 porciones"/"6 servings" if stated, else null,
+  "source_urls": [the source URL if provided, else []],
+  "groups": [{ "label": sub-group label or null, "kind": "ing" or "step", "items": [strings] }] — ingredients first, then steps, markers stripped, ORIGINAL language,
+  "notes": [short tips or macros in original language, or []],
+  "language": "es" or "en" as detected
+}
+Do not invent ingredients or steps. If the input is not a recipe, return {"error":"not a recipe"}.`;
+
 async function fetchPageText(url: string): Promise<string> {
   const res = await fetch(url, {
     headers: {
@@ -50,7 +65,11 @@ async function fetchPageText(url: string): Promise<string> {
     .slice(0, 14000);
 }
 
-export async function parseRecipe(input: string): Promise<ParsedRecipe> {
+export async function parseRecipe(
+  input: string,
+  opts: { translate?: boolean } = {},
+): Promise<ParsedRecipe> {
+  const translate = opts.translate !== false;
   const trimmed = input.trim();
   const isUrl = /^https?:\/\/\S+$/i.test(trimmed);
   let body = trimmed;
@@ -61,7 +80,7 @@ export async function parseRecipe(input: string): Promise<ParsedRecipe> {
   const msg = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 3000,
-    system: SYSTEM,
+    system: translate ? SYSTEM : SYSTEM_KEEP,
     messages: [{ role: "user", content: body }],
   });
   const text = msg.content

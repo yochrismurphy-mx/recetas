@@ -61,6 +61,28 @@ export async function addCollection(id: string, name: string) {
   await touch(id);
 }
 
+export async function deleteRecipe(id: string) {
+  const s = getServerClient();
+  await s.from("recipes").delete().eq("id", id);
+  revalidatePath("/");
+}
+
+export async function updateRecipe(
+  id: string,
+  fields: {
+    title: string;
+    type: string;
+    porciones: string | null;
+    fridge_life_days: number | null;
+    ingredients: { label: string | null; items: string[] }[];
+    steps: { label: string | null; items: string[] }[];
+  },
+) {
+  const s = getServerClient();
+  await s.from("recipes").update(fields).eq("id", id);
+  await touch(id);
+}
+
 export async function addTag(id: string, name: string) {
   if (!name.trim()) return;
   const s = getServerClient();

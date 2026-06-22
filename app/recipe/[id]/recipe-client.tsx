@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   setRating, markCooked, addNote, setCollection, setTag, addCollection, addTag,
+  deleteRecipe, updateRecipe,
 } from "./actions";
 
 type Group = { label: string | null; items: string[] };
@@ -18,6 +19,29 @@ type Recipe = {
 };
 type Opt = { id: string; name: string };
 
+const TYPES = ["Aves", "Carne", "Pescado", "Leguminosas", "Ensalada", "Sopa/Curry",
+  "Granos/Pasta", "Verduras", "Postre", "Desayuno", "Pan/Masa", "Salsas/Dips", "Untables"];
+
+function groupsToText(groups: Group[]): string {
+  return groups.map((g) => (g.label ? `# ${g.label}\n` : "") + g.items.join("\n")).join("\n\n");
+}
+function textToGroups(text: string): Group[] {
+  const groups: Group[] = [];
+  let cur: Group | null = null;
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (line.startsWith("# ")) {
+      cur = { label: line.slice(2).trim(), items: [] };
+      groups.push(cur);
+    } else {
+      if (!cur) { cur = { label: null, items: [] }; groups.push(cur); }
+      cur.items.push(line);
+    }
+  }
+  return groups;
+}
+
 export function RecipeClient({
   recipe, allCollections, allTags,
 }: { recipe: Recipe; allCollections: Opt[]; allTags: Opt[] }) {
@@ -28,6 +52,15 @@ export function RecipeClient({
   const [newTag, setNewTag] = useState("");
   const [uploading, setUploading] = useState(false);
   const [hoverStar, setHoverStar] = useState(0);
+  const [confirmDel, setConfirmDel] = useState(false);
+
+  const [editing, setEditing] = useState(false);
+  const [eTitle, setETitle] = useState(recipe.title);
+  const [eType, setEType] = useState(recipe.type ?? "Sopa/Curry");
+  const [ePorc, setEPorc] = useState(recipe.porciones ?? "");
+  const [eFridge, setEFridge] = useState(recipe.fridge_life_days?.toString() ?? "");
+  const [eIng, setEIng] = useState(groupsToText(recipe.ingredients));
+  const [eSteps, setESteps] = useState(groupsToText(recipe.steps));
 
   const run = (fn: () => Promise<unknown>) =>
     start(async () => { await fn(); router.refresh(); });
@@ -45,14 +78,50 @@ export function RecipeClient({
     router.refresh();
   }
 
+  function saveEdit() {
+    start(async () => {
+      await updateRecipe(recipe.id, {
+        title: eTitle.trim() || recipe.title,
+        type: eType,
+        porciones: ePorc.trim() || null,
+        fridge_life_days: eFridge.trim() ? Number(eFridge) : null,
+        ingredients: textToGroups(eIng),
+        steps: textToGroups(eSteps),
+      });
+      setEditing(false);
+      router.refresh();
+    });
+  }
+
   const collOn = new Set(recipe.collectionIds);
   const tagOn = new Set(recipe.tagIds);
 
   return (
     <main className="mx-auto max-w-2xl px-5 py-8">
-      <Link href="/" className="text-sm text-muted transition-colors hover:text-accent">
-        ← Biblioteca
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link href="/" className="text-sm text-muted transition-colors hover:text-accent">← Biblioteca</Link>
+        {!editing && (
+          <div className="flex items-center gap-2">
+            <button onClick={() => setEditing(true)} className="btn btn-ghost px-3 py-1.5 text-xs">Editar</button>
+            {confirmDel ? (
+              <span className="flex items-center gap-2 text-xs">
+                <span className="text-muted">¿Eliminar?</span>
+                <button
+                  onClick={() => start(async () => { await deleteRecipe(recipe.id); router.push("/"); })}
+                  className="rounded-lg bg-accent px-3 py-1.5 font-medium text-white hover:bg-accent-strong"
+                >
+                  Sí, eliminar
+                </button>
+                <button onClick={() => setConfirmDel(false)} className="btn btn-ghost px-3 py-1.5 text-xs">Cancelar</button>
+              </span>
+            ) : (
+              <button onClick={() => setConfirmDel(true)} className="px-2 py-1.5 text-xs text-muted transition-colors hover:text-accent-strong">
+                Eliminar
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="relative mt-4 flex h-56 items-center justify-center overflow-hidden rounded-2xl bg-surface text-7xl">
         {recipe.image_url ? (
@@ -66,44 +135,97 @@ export function RecipeClient({
         </label>
       </div>
 
-      <h1 className="mt-4 text-3xl font-medium leading-tight tracking-tight">{recipe.title}</h1>
-
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <div className="flex text-2xl leading-none">
-          {[1, 2, 3, 4, 5].map((i) => {
-            const filled = i <= (hoverStar || recipe.rating || 0);
-            return (
-              <button
-                key={i}
-                disabled={pending}
-                onMouseEnter={() => setHoverStar(i)}
-                onMouseLeave={() => setHoverStar(0)}
-                onClick={() => run(() => setRating(recipe.id, i === recipe.rating ? null : i))}
-                className={`px-0.5 transition-transform hover:scale-125 ${filled ? "text-accent" : "text-line"}`}
-                aria-label={`${i} estrellas`}
-              >
-                ★
-              </button>
-            );
-          })}
+      {editing ? (
+        <div className="mt-4 space-y-3">
+          <input value={eTitle} onChange={(e) => setETitle(e.target.value)} className="input font-display text-xl font-medium" />
+          <div className="flex flex-wrap gap-2">
+            <select value={eType} onChange={(e) => setEType(e.target.value)} className="input w-44">
+              {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <input value={ePorc} onChange={(e) => setEPorc(e.target.value)} placeholder="porciones" className="input w-32" />
+            <input value={eFridge} onChange={(e) => setEFridge(e.target.value)} placeholder="días en refri" inputMode="numeric" className="input w-32" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Ingredientes</label>
+            <p className="mb-1 text-xs text-muted">Un ingrediente por línea. Empieza una línea con “# ” para un subgrupo.</p>
+            <textarea value={eIng} onChange={(e) => setEIng(e.target.value)} className="input min-h-40 font-mono text-sm" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Preparación</label>
+            <p className="mb-1 text-xs text-muted">Un paso por línea.</p>
+            <textarea value={eSteps} onChange={(e) => setESteps(e.target.value)} className="input min-h-40 font-mono text-sm" />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={saveEdit} disabled={pending} className="btn btn-primary">Guardar cambios</button>
+            <button onClick={() => setEditing(false)} className="btn btn-ghost">Cancelar</button>
+          </div>
         </div>
-        <button onClick={() => run(() => markCooked(recipe.id))} disabled={pending} className="btn btn-ghost">
-          Marcar cocinada{recipe.times_cooked ? ` · ${recipe.times_cooked}` : ""}
-        </button>
-      </div>
+      ) : (
+        <>
+          <h1 className="mt-4 text-3xl font-medium leading-tight tracking-tight">{recipe.title}</h1>
 
-      <p className="mt-3 text-sm text-muted">
-        {recipe.porciones ? `${recipe.porciones} porciones · ` : ""}
-        {recipe.fridge_life_days != null ? `aguanta ${recipe.fridge_life_days} días` : ""}
-        {recipe.source_url ? (
-          <>
-            {recipe.porciones || recipe.fridge_life_days != null ? " · " : ""}
-            <a href={recipe.source_url} target="_blank" rel="noreferrer" className="text-accent hover:underline">
-              Fuente
-            </a>
-          </>
-        ) : null}
-      </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <div className="flex text-2xl leading-none">
+              {[1, 2, 3, 4, 5].map((i) => {
+                const filled = i <= (hoverStar || recipe.rating || 0);
+                return (
+                  <button
+                    key={i}
+                    disabled={pending}
+                    onMouseEnter={() => setHoverStar(i)}
+                    onMouseLeave={() => setHoverStar(0)}
+                    onClick={() => run(() => setRating(recipe.id, i === recipe.rating ? null : i))}
+                    className={`px-0.5 transition-transform hover:scale-125 ${filled ? "text-accent" : "text-line"}`}
+                    aria-label={`${i} estrellas`}
+                  >
+                    ★
+                  </button>
+                );
+              })}
+            </div>
+            <button onClick={() => run(() => markCooked(recipe.id))} disabled={pending} className="btn btn-ghost">
+              Marcar cocinada{recipe.times_cooked ? ` · ${recipe.times_cooked}` : ""}
+            </button>
+          </div>
+
+          <p className="mt-3 text-sm text-muted">
+            {recipe.porciones ? `${recipe.porciones} porciones · ` : ""}
+            {recipe.fridge_life_days != null ? `aguanta ${recipe.fridge_life_days} días` : ""}
+            {recipe.source_url ? (
+              <>
+                {recipe.porciones || recipe.fridge_life_days != null ? " · " : ""}
+                <a href={recipe.source_url} target="_blank" rel="noreferrer" className="text-accent hover:underline">Fuente</a>
+              </>
+            ) : null}
+          </p>
+
+          {recipe.ingredients.length > 0 && (
+            <Section title="Ingredientes">
+              {recipe.ingredients.map((g, i) => (
+                <div key={i} className="mb-2">
+                  {g.label && <div className="text-sm font-semibold">{g.label}</div>}
+                  <ul className="list-disc pl-5 text-[15px] leading-relaxed text-ink/85">
+                    {g.items.map((it, j) => <li key={j}>{it}</li>)}
+                  </ul>
+                </div>
+              ))}
+            </Section>
+          )}
+
+          {recipe.steps.length > 0 && (
+            <Section title="Preparación">
+              {recipe.steps.map((g, i) => (
+                <div key={i} className="mb-2">
+                  {g.label && <div className="text-sm font-semibold">{g.label}</div>}
+                  <ol className="list-decimal space-y-1 pl-5 text-[15px] leading-relaxed text-ink/85">
+                    {g.items.map((it, j) => <li key={j} className="pl-1">{it}</li>)}
+                  </ol>
+                </div>
+              ))}
+            </Section>
+          )}
+        </>
+      )}
 
       <Section title="Colecciones">
         <div className="flex flex-wrap gap-1.5">
@@ -126,32 +248,6 @@ export function RecipeClient({
             onAdd={() => { run(() => addTag(recipe.id, newTag)); setNewTag(""); }} />
         </div>
       </Section>
-
-      {recipe.ingredients.length > 0 && (
-        <Section title="Ingredientes">
-          {recipe.ingredients.map((g, i) => (
-            <div key={i} className="mb-2">
-              {g.label && <div className="text-sm font-semibold">{g.label}</div>}
-              <ul className="list-disc pl-5 text-[15px] leading-relaxed text-ink/85">
-                {g.items.map((it, j) => <li key={j}>{it}</li>)}
-              </ul>
-            </div>
-          ))}
-        </Section>
-      )}
-
-      {recipe.steps.length > 0 && (
-        <Section title="Preparación">
-          {recipe.steps.map((g, i) => (
-            <div key={i} className="mb-2">
-              {g.label && <div className="text-sm font-semibold">{g.label}</div>}
-              <ol className="list-decimal space-y-1 pl-5 text-[15px] leading-relaxed text-ink/85">
-                {g.items.map((it, j) => <li key={j} className="pl-1">{it}</li>)}
-              </ol>
-            </div>
-          ))}
-        </Section>
-      )}
 
       <Section title="Notas">
         {recipe.notes.length > 0 ? (
