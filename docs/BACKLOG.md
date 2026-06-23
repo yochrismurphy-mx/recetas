@@ -43,13 +43,16 @@ Conventions: `[ ]` open · `[~]` partially done · `[x]` done (kept briefly for 
 
 ## Design / UX (smaller polish)
 
-- [ ] Ongoing polish as we use it; no specific items queued right now.
+- [ ] "Biblioteca" back-nav still re-fetches the whole library (force-dynamic), so it can feel slow on a cold load — consider caching / lighter back-nav if it still drags.
+- [ ] Apply the same optimistic-update pattern to any other laggy clicks we notice (week page, compras toggles).
 
 ---
 
 ## Recently shipped (for orientation)
 
-- Welcoming unlock (password) page with kitchen photo; clean cards header; title "La cocina de Norma y Chris."
+- Snappier UI: optimistic updates on rating / cook-status / collection+tag toggles (instant, no round-trip lag); stronger hover + back-link affordance.
+- Full-bleed unlock (password) page with a big kitchen photo; clean cards header; title "La cocina de Norma y Chris."
+- Fridge shelf-life clearly editable (labeled field in Editar).
 - 3-state cook status (Sin probar / Ya cocinada / De cabecera) replacing the broken counter.
 - Source-link editing on recipes.
 - Filter overhaul: search + Filtros panel with removable chips; new facets (calificación, frescura, estado, por completar).
