@@ -16,12 +16,13 @@ Conventions: `[ ]` open · `[~]` partially done · `[x]` done (kept briefly for 
   - [ ] Brand-new recipes
   - [ ] Innovations / variations on existing recipes
   - [ ] Recipes by diet, plan, or constraint (e.g. high-protein, vegetarian week, what's in season)
+  - [ ] **Ideas from what's in the fridge** — generate recipe ideas from the current fridge-contents list ("usa lo que tenemos"). Chris flagged this as a wanted feature (2026-06-22); not building yet. Depends on the Fridge contents item below.
   - [ ] Recipes pulled from our own old cookbooks / files (import Chris's existing recipe files)
 
 ## Weekly Ideas & Grocery List
 
 - [ ] **General structuring improvement** of the weekly + shopping flow
-- [ ] **Pantry staples** — share/maintain what we keep on hand (partially exists: "Mis básicos" on /compras; revisit as the canonical pantry)
+- [~] **Pantry staples** — decided NOT to build a feature for now. Instead Claude proposes a candidate staples list (from the recipe corpus + common pantry items), Chris confirms what he actually has, and they get added to the existing "Mis básicos" on /compras. (in progress 2026-06-22)
 - [ ] **Fridge contents** — share what's currently in the refrigerator so the list and ideas account for it
 - [ ] **Beyond-recipe buys** — capture what we want / usually buy outside the recipes; have it prompt us about these
 - [ ] **Automate Uber Eats / Sumesa cart** — push the finished list into a Sumesa shopping cart
@@ -34,7 +35,7 @@ Conventions: `[ ]` open · `[~]` partially done · `[x]` done (kept briefly for 
 
 - [ ] Fill in recipes missing ingredients or steps — use the "Por completar" filter to find them.
 - [ ] Two recipes imported with no ingredient text, need full text: "Creamy Jalapeño-Basil Edamame Spread", "Delicious sweet potato".
-- [ ] Decide on near-duplicate: empty "Crispy Rice Salad" (its own IG source) vs. the full "…with Creamy Sweet Chilli Dressing".
+- [x] Deleted the empty "Crispy Rice Salad" stub (kept the full "…with Creamy Sweet Chilli Dressing"). (2026-06-22)
 
 ## Images
 
