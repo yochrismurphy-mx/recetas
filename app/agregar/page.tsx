@@ -69,7 +69,11 @@ export default function Agregar() {
       {preview && (
         <div className="card mt-6 p-5">
           <div className="flex items-center gap-3">
-            <span className="text-4xl">{preview.emoji}</span>
+            {preview.image_candidate ? (
+              <img src={preview.image_candidate} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+            ) : (
+              <span className="text-4xl">{preview.emoji}</span>
+            )}
             <input value={title} onChange={(e) => setTitle(e.target.value)} className="input flex-1 font-display text-lg font-medium" />
           </div>
           <p className="mt-1.5 text-xs uppercase tracking-wide text-muted">
@@ -77,6 +81,13 @@ export default function Agregar() {
             {preview.porciones ? ` · ${preview.porciones}` : ""}
             {preview.language === "en" ? " · traducido del inglés" : ""}
           </p>
+          {preview.tags?.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {preview.tags.map((t) => (
+                <span key={t} className="rounded-full border border-line px-2 py-0.5 text-[11px] text-muted">{t}</span>
+              ))}
+            </div>
+          )}
 
           {ing.length > 0 && (
             <div className="mt-4">

@@ -2,6 +2,14 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// Etiqueta vocabulary the model may suggest on add (keep in sync with supabase/auto-tag.ts).
+export const TAG_VOCAB = [
+  "Mexicano", "Italiano", "Indio", "Tailandés", "Griego", "Japonés", "Coreano",
+  "Chino", "Vietnamita", "Mediterráneo", "Medio Oriente", "Americano", "Francés",
+  "Africano", "Vegetariano", "Vegano", "Sin gluten", "Rápido", "Saludable",
+  "Picante", "Para invitados",
+];
+
 export type ParsedGroup = { label: string | null; kind: "ing" | "step"; items: string[] };
 export type ParsedRecipe = {
   emoji: string;
@@ -12,6 +20,8 @@ export type ParsedRecipe = {
   groups: ParsedGroup[];
   notes: string[];
   language: "es" | "en";
+  tags: string[];
+  image_candidate: string | null;
 };
 
 const SYSTEM = `You parse a recipe (given as a URL's page text or pasted text) into clean structured JSON for a recipe app, and translate it to Spanish if it is in English. Output ONLY a valid JSON object, no markdown, no commentary.
@@ -25,6 +35,7 @@ Schema:
   "source_urls": array with the source URL if one was provided, else [],
   "groups": array of { "label": short sub-group label or null, "kind": "ing" or "step", "items": [strings] } — ingredients first, then steps, all in Spanish, markers stripped,
   "notes": array of short tips in Spanish, or [],
+  "tags": array of applicable labels chosen ONLY from this list — conservative, do not over-tag (cuisine only if clearly that cuisine; "Vegetariano" if no meat/poultry/fish; "Vegano" if no animal products at all, also add Vegetariano; "Rápido" if quick/simple; "Picante" if notably spicy): ${TAG_VOCAB.join(", ")},
   "language": "es"
 }
 
@@ -41,11 +52,30 @@ Schema:
   "source_urls": [the source URL if provided, else []],
   "groups": [{ "label": sub-group label or null, "kind": "ing" or "step", "items": [strings] }] — ingredients first, then steps, markers stripped, ORIGINAL language,
   "notes": [short tips or macros in original language, or []],
+  "tags": array of applicable labels chosen ONLY from this list — conservative, do not over-tag (cuisine only if clearly that cuisine; "Vegetariano" if no meat/poultry/fish; "Vegano" if no animal products at all, also add Vegetariano; "Rápido" if quick/simple; "Picante" if notably spicy): ${TAG_VOCAB.join(", ")},
   "language": "es" or "en" as detected
 }
 Do not invent ingredients or steps. If the input is not a recipe, return {"error":"not a recipe"}.`;
 
-async function fetchPageText(url: string): Promise<string> {
+function resolveUrl(u: string, base: string): string {
+  if (u.startsWith("//")) return "https:" + u;
+  try { return new URL(u, base).href; } catch { return u; }
+}
+
+// Pull the page's hero image (og:image, with twitter:image fallback).
+function extractOgImage(html: string, baseUrl: string): string | null {
+  const patterns = [
+    /<meta[^>]+(?:property|name)=["'](?:og:image(?::secure_url)?|twitter:image(?::src)?)["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:image(?::secure_url)?|twitter:image(?::src)?)["']/i,
+  ];
+  for (const re of patterns) {
+    const cand = html.match(re)?.[1]?.trim();
+    if (cand && /^((https?:)?\/\/|\/)/.test(cand)) return resolveUrl(cand, baseUrl);
+  }
+  return null;
+}
+
+async function fetchPage(url: string): Promise<{ text: string; image: string | null }> {
   const res = await fetch(url, {
     headers: {
       "user-agent":
@@ -56,13 +86,15 @@ async function fetchPageText(url: string): Promise<string> {
     signal: AbortSignal.timeout(15000),
   });
   const html = await res.text();
-  return html
+  const image = extractOgImage(html, url);
+  const text = html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 14000);
+  return { text, image };
 }
 
 export async function parseRecipe(
@@ -73,9 +105,11 @@ export async function parseRecipe(
   const trimmed = input.trim();
   const isUrl = /^https?:\/\/\S+$/i.test(trimmed);
   let body = trimmed;
+  let scrapedImage: string | null = null;
   if (isUrl) {
-    const pageText = await fetchPageText(trimmed);
-    body = `Source URL: ${trimmed}\n\nPage text:\n${pageText}`;
+    const { text, image } = await fetchPage(trimmed);
+    scrapedImage = image;
+    body = `Source URL: ${trimmed}\n\nPage text:\n${text}`;
   }
   const msg = await client.messages.create({
     model: "claude-sonnet-4-6",
@@ -93,6 +127,8 @@ export async function parseRecipe(
   if (isUrl && (!parsed.source_urls || parsed.source_urls.length === 0)) {
     parsed.source_urls = [trimmed];
   }
+  parsed.tags = Array.isArray(parsed.tags) ? parsed.tags.filter((t: string) => TAG_VOCAB.includes(t)) : [];
+  parsed.image_candidate = scrapedImage;
   return parsed as ParsedRecipe;
 }
 

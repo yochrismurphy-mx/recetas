@@ -241,7 +241,7 @@ export function RecipeClient({
           </div>
 
           <p className="mt-3 text-sm text-muted">
-            {recipe.porciones ? `${recipe.porciones} porciones · ` : ""}
+            {recipe.porciones ? `${/porci/i.test(recipe.porciones) ? recipe.porciones : `${recipe.porciones} porciones`} · ` : ""}
             {recipe.fridge_life_days != null ? `aguanta ${recipe.fridge_life_days} días` : ""}
             {recipe.source_url ? (
               <>

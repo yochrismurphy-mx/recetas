@@ -10,6 +10,33 @@ const TYPE_EMOJI: Record<string, string> = {
   Desayuno: "🥣", "Pan/Masa": "🫓", "Salsas/Dips": "🫙", Untables: "🥜",
 };
 
+const IMG_EXT: Record<string, string> = {
+  "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png",
+  "image/webp": "webp", "image/gif": "gif", "image/avif": "avif",
+};
+
+// Download a scraped image URL and store it in our bucket. Returns the public
+// URL, or null on any failure (hotlink protection, non-image, too small, etc.).
+async function storeImage(
+  s: ReturnType<typeof getServerClient>,
+  recipeId: string,
+  url: string,
+): Promise<string | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000), headers: { "user-agent": "Mozilla/5.0" } });
+    const ct = (res.headers.get("content-type") || "").split(";")[0].trim();
+    if (!res.ok || !ct.startsWith("image/")) return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.byteLength < 2000) return null;
+    const path = `${recipeId}/scraped-${Date.now()}.${IMG_EXT[ct] || "jpg"}`;
+    const { error } = await s.storage.from("recipe-images").upload(path, bytes, { contentType: ct, upsert: true });
+    if (error) return null;
+    return s.storage.from("recipe-images").getPublicUrl(path).data.publicUrl;
+  } catch {
+    return null;
+  }
+}
+
 export async function saveRecipe(p: ParsedRecipe): Promise<string> {
   const s = getServerClient();
   const emoji = TYPE_EMOJI[p.type] || p.emoji || null;
@@ -38,6 +65,18 @@ export async function saveRecipe(p: ParsedRecipe): Promise<string> {
 
   const { data: coll } = await s.from("collections").select("id").eq("name", "Personal").single();
   if (coll) await s.from("recipe_collections").insert({ recipe_id: data.id, collection_id: coll.id });
+
+  // Scrape + store the page's hero image, if one was found.
+  if (p.image_candidate) {
+    const img = await storeImage(s, data.id as string, p.image_candidate);
+    if (img) await s.from("recipes").update({ image_url: img }).eq("id", data.id);
+  }
+
+  // Auto-apply suggested etiquetas.
+  for (const name of p.tags || []) {
+    const { data: tag } = await s.from("tags").upsert({ name }, { onConflict: "name" }).select("id").single();
+    if (tag) await s.from("recipe_tags").upsert({ recipe_id: data.id, tag_id: tag.id });
+  }
 
   for (const n of p.notes || []) {
     if (n?.trim()) await s.from("recipe_notes").insert({ recipe_id: data.id, body: n.trim() });
