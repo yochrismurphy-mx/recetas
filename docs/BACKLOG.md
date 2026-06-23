@@ -10,9 +10,8 @@ Conventions: `[ ]` open · `[~]` partially done · `[x]` done (kept briefly for 
 
 ## Finding & Adding New Recipes
 
-- [~] **Add a recipe from a link** — scrape the recipe, pull the image, grab + link the source, auto-tag.
-  - Now: `/agregar` accepts a pasted link or text, AI-parses into structured ingredients/steps, and translates to Spanish. Source link is now editable on the recipe.
-  - Gaps: it doesn't reliably *scrape the page image*, doesn't auto-capture the source URL from a pasted link, and doesn't auto-apply Etiquetas on add (tags are applied in a separate batch step).
+- [x] **Add a recipe from a link** — scrapes the recipe, pulls the page image (og:image → stored in bucket), captures + links the source, auto-applies Etiquetas, translates to Spanish. Preview shows the image + suggested tags before saving. (shipped 2026-06-22)
+  - Possible follow-ups: let the user edit/deselect suggested tags in the preview; fall back to a larger in-page image when og:image is low-res; handle paywalled/JS-only pages (some sites won't scrape).
 - [ ] **Generate new ideas**
   - [ ] Brand-new recipes
   - [ ] Innovations / variations on existing recipes
@@ -50,6 +49,7 @@ Conventions: `[ ]` open · `[~]` partially done · `[x]` done (kept briefly for 
 
 ## Recently shipped (for orientation)
 
+- Add-by-link: scrapes page image + auto-tags + captures source, with image/tags shown in the add preview.
 - Snappier UI: optimistic updates on rating / cook-status / collection+tag toggles (instant, no round-trip lag); stronger hover + back-link affordance.
 - Full-bleed unlock (password) page with a big kitchen photo; clean cards header; title "La cocina de Norma y Chris."
 - Fridge shelf-life clearly editable (labeled field in Editar).
