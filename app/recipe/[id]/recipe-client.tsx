@@ -57,6 +57,13 @@ export function RecipeClient({
   const [hoverStar, setHoverStar] = useState(0);
   const [confirmDel, setConfirmDel] = useState(false);
 
+  // Optimistic local state: update the UI instantly, fire the server action
+  // in the background (avoids the click → await → refresh round-trip lag).
+  const [rating, setRatingLocal] = useState(recipe.rating);
+  const [status, setStatusLocal] = useState<CookStatus>(recipe.cook_status);
+  const [collOn, setCollOn] = useState<Set<string>>(new Set(recipe.collectionIds));
+  const [tagOn, setTagOn] = useState<Set<string>>(new Set(recipe.tagIds));
+
   const [editing, setEditing] = useState(false);
   const [eTitle, setETitle] = useState(recipe.title);
   const [eType, setEType] = useState(recipe.type ?? "Sopa/Curry");
@@ -98,13 +105,10 @@ export function RecipeClient({
     });
   }
 
-  const collOn = new Set(recipe.collectionIds);
-  const tagOn = new Set(recipe.tagIds);
-
   return (
     <main className="mx-auto max-w-2xl px-5 py-8">
       <div className="flex items-center justify-between">
-        <Link href="/" className="text-sm text-muted transition-colors hover:text-accent">← Biblioteca</Link>
+        <Link href="/" className="-ml-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium text-ink/75 transition-colors hover:bg-surface hover:text-ink">← Biblioteca</Link>
         {!editing && (
           <div className="flex items-center gap-2">
             <button onClick={() => setEditing(true)} className="btn btn-ghost px-3 py-1.5 text-xs">Editar</button>
@@ -143,20 +147,32 @@ export function RecipeClient({
       {editing ? (
         <div className="mt-4 space-y-3">
           <input value={eTitle} onChange={(e) => setETitle(e.target.value)} className="input font-display text-xl font-medium" />
-          <div className="flex flex-wrap gap-2">
-            <select value={eType} onChange={(e) => setEType(e.target.value)} className="input w-44">
-              {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <input value={ePorc} onChange={(e) => setEPorc(e.target.value)} placeholder="porciones" className="input w-32" />
-            <input value={eFridge} onChange={(e) => setEFridge(e.target.value)} placeholder="días en refri" inputMode="numeric" className="input w-32" />
+          <div className="flex flex-wrap gap-3">
+            <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-muted">
+              Tipo
+              <select value={eType} onChange={(e) => setEType(e.target.value)} className="input w-44">
+                {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-muted">
+              Porciones
+              <input value={ePorc} onChange={(e) => setEPorc(e.target.value)} placeholder="ej. 4" className="input w-28" />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-muted">
+              Días en refri
+              <input value={eFridge} onChange={(e) => setEFridge(e.target.value)} placeholder="ej. 5" inputMode="numeric" className="input w-28" />
+            </label>
           </div>
-          <input
-            value={eSource}
-            onChange={(e) => setESource(e.target.value)}
-            placeholder="Liga / fuente (https://…)"
-            inputMode="url"
-            className="input"
-          />
+          <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            Liga / fuente
+            <input
+              value={eSource}
+              onChange={(e) => setESource(e.target.value)}
+              placeholder="https://…"
+              inputMode="url"
+              className="input"
+            />
+          </label>
           <div>
             <label className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Ingredientes</label>
             <p className="mb-1 text-xs text-muted">Un ingrediente por línea. Empieza una línea con “# ” para un subgrupo.</p>
@@ -186,15 +202,14 @@ export function RecipeClient({
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <div className="flex text-2xl leading-none">
               {[1, 2, 3, 4, 5].map((i) => {
-                const filled = i <= (hoverStar || recipe.rating || 0);
+                const filled = i <= (hoverStar || rating || 0);
                 return (
                   <button
                     key={i}
-                    disabled={pending}
                     onMouseEnter={() => setHoverStar(i)}
                     onMouseLeave={() => setHoverStar(0)}
-                    onClick={() => run(() => setRating(recipe.id, i === recipe.rating ? null : i))}
-                    className={`px-0.5 transition-transform hover:scale-125 ${filled ? "text-accent" : "text-line"}`}
+                    onClick={() => { const next = i === rating ? null : i; setRatingLocal(next); start(() => setRating(recipe.id, next)); }}
+                    className={`cursor-pointer px-0.5 transition-transform hover:scale-125 ${filled ? "text-accent" : "text-line"}`}
                     aria-label={`${i} estrellas`}
                   >
                     ★
@@ -215,10 +230,9 @@ export function RecipeClient({
             {(["sin_probar", "cocinada", "cabecera"] as CookStatus[]).map((st) => (
               <button
                 key={st}
-                disabled={pending}
-                onClick={() => run(() => setCookStatus(recipe.id, st))}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                  recipe.cook_status === st ? "bg-accent text-white" : "text-muted hover:text-ink"
+                onClick={() => { setStatusLocal(st); start(() => setCookStatus(recipe.id, st)); }}
+                className={`cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  status === st ? "bg-accent text-white" : "text-muted hover:bg-surface hover:text-ink"
                 }`}
               >
                 {COOK_STATUS_LABELS[st]}
@@ -268,8 +282,12 @@ export function RecipeClient({
       <Section title="Colecciones">
         <div className="flex flex-wrap gap-1.5">
           {allCollections.map((c) => (
-            <button key={c.id} className="chip" data-on={collOn.has(c.id) || undefined} disabled={pending}
-              onClick={() => run(() => setCollection(recipe.id, c.id, !collOn.has(c.id)))}>{c.name}</button>
+            <button key={c.id} className="chip" data-on={collOn.has(c.id) || undefined}
+              onClick={() => {
+                const on = !collOn.has(c.id);
+                setCollOn((prev) => { const n = new Set(prev); on ? n.add(c.id) : n.delete(c.id); return n; });
+                start(() => setCollection(recipe.id, c.id, on));
+              }}>{c.name}</button>
           ))}
           <AddInline value={newColl} setValue={setNewColl} disabled={pending}
             onAdd={() => { run(() => addCollection(recipe.id, newColl)); setNewColl(""); }} />
@@ -282,8 +300,12 @@ export function RecipeClient({
         </p>
         <div className="flex flex-wrap gap-1.5">
           {allTags.map((t) => (
-            <button key={t.id} className="chip" data-on={tagOn.has(t.id) || undefined} disabled={pending}
-              onClick={() => run(() => setTag(recipe.id, t.id, !tagOn.has(t.id)))}>{t.name}</button>
+            <button key={t.id} className="chip" data-on={tagOn.has(t.id) || undefined}
+              onClick={() => {
+                const on = !tagOn.has(t.id);
+                setTagOn((prev) => { const n = new Set(prev); on ? n.add(t.id) : n.delete(t.id); return n; });
+                start(() => setTag(recipe.id, t.id, on));
+              }}>{t.name}</button>
           ))}
           <AddInline value={newTag} setValue={setNewTag} disabled={pending}
             onAdd={() => { run(() => addTag(recipe.id, newTag)); setNewTag(""); }} />

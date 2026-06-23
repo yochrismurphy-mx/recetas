@@ -49,7 +49,7 @@ export default function Agregar() {
 
   return (
     <main className="mx-auto max-w-2xl px-5 py-8">
-      <Link href="/" className="text-sm text-muted transition-colors hover:text-accent">← Biblioteca</Link>
+      <Link href="/" className="-ml-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium text-ink/75 transition-colors hover:bg-surface hover:text-ink">← Biblioteca</Link>
       <h1 className="mt-4 text-3xl font-medium tracking-tight">Agregar una receta<span className="text-accent">.</span></h1>
       <p className="mt-1 text-sm text-muted">
         Pega un enlace o el texto de una receta. La estructuro y la traduzco al español.
