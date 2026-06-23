@@ -148,55 +148,85 @@ export function LibraryClient({
         )}
 
         {panelOpen && (
-          <div className="space-y-3 rounded-2xl border border-line bg-card p-4">
-            <FilterRow label="Colección" options={allCollections} active={f.collections} onToggle={(v) => toggle("collections", v)} />
-            <FilterRow label="Tipo" options={allTypes} active={f.types} onToggle={(v) => toggle("types", v)} square />
-            {allTags.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="w-24 shrink-0 text-xs uppercase tracking-wide text-muted">Etiqueta</span>
-                {allTags.map((t) => (
-                  <button key={t} className="chip" data-on={f.tags.includes(t) || undefined} onClick={() => toggle("tags", t)}>{t}</button>
+          <div className="filter-panel rounded-2xl border border-line bg-card p-4">
+            <div className="grid grid-cols-[5.5rem_1fr] items-start gap-x-3 gap-y-2.5">
+              {allCollections.length > 0 && (
+                <>
+                  <FLabel>Colección</FLabel>
+                  <FChips>
+                    {allCollections.map((c) => (
+                      <button key={c} className="chip" data-on={f.collections.includes(c) || undefined} onClick={() => toggle("collections", c)}>{c}</button>
+                    ))}
+                  </FChips>
+                </>
+              )}
+              {allTypes.length > 0 && (
+                <>
+                  <FLabel>Tipo</FLabel>
+                  <FChips>
+                    {allTypes.map((t) => (
+                      <button key={t} className="chip rounded-md" data-on={f.types.includes(t) || undefined} onClick={() => toggle("types", t)}>{t}</button>
+                    ))}
+                  </FChips>
+                </>
+              )}
+              {allTags.length > 0 && (
+                <>
+                  <FLabel>Etiqueta</FLabel>
+                  <FChips>
+                    {allTags.map((t) => (
+                      <button key={t} className="chip" data-on={f.tags.includes(t) || undefined} onClick={() => toggle("tags", t)}>{t}</button>
+                    ))}
+                    <button
+                      onClick={() => setF({ ...f, mode: f.mode === "all" ? "any" : "all" })}
+                      className="ml-1 self-center text-[11px] text-muted underline decoration-dotted underline-offset-2 hover:text-ink"
+                    >
+                      {f.mode === "all" ? "coincidir todas" : "coincidir cualquiera"}
+                    </button>
+                  </FChips>
+                </>
+              )}
+
+              <div className="col-span-2 my-1 border-t border-line/70" />
+
+              <FLabel>Calificación</FLabel>
+              <FChips>
+                {RATING_OPTIONS.map((n) => (
+                  <button key={n} className="chip" data-on={f.minRating === n || undefined}
+                    onClick={() => setF((p) => ({ ...p, minRating: p.minRating === n ? null : n }))}>
+                    {n}★{n < 5 ? "+" : ""}
+                  </button>
                 ))}
-                <button
-                  onClick={() => setF({ ...f, mode: f.mode === "all" ? "any" : "all" })}
-                  className="ml-1 text-xs text-muted underline decoration-dotted underline-offset-2 hover:text-ink"
-                >
-                  {f.mode === "all" ? "coincidir todas" : "coincidir cualquiera"}
-                </button>
-              </div>
-            )}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="w-24 shrink-0 text-xs uppercase tracking-wide text-muted">Calificación</span>
-              {RATING_OPTIONS.map((n) => (
-                <button key={n} className="chip" data-on={f.minRating === n || undefined}
-                  onClick={() => setF((p) => ({ ...p, minRating: p.minRating === n ? null : n }))}>
-                  {n}★{n < 5 ? "+" : ""}
-                </button>
-              ))}
+              </FChips>
+
+              <FLabel>Frescura</FLabel>
+              <FChips>
+                {FRIDGE_BUCKETS.map((b) => (
+                  <button key={b.key} className="chip" data-on={f.fridge.includes(b.key) || undefined}
+                    onClick={() => toggle("fridge", b.key)}>{b.label}</button>
+                ))}
+              </FChips>
+
+              <FLabel>Estado</FLabel>
+              <FChips>
+                {(["sin_probar", "cocinada", "cabecera"] as CookStatus[]).map((s) => (
+                  <button key={s} className="chip" data-on={f.status.includes(s) || undefined}
+                    onClick={() => toggle("status", s)}>{COOK_STATUS_LABELS[s]}</button>
+                ))}
+              </FChips>
+
+              {incompleteCount > 0 && (
+                <>
+                  <FLabel>Otros</FLabel>
+                  <FChips>
+                    <button className="chip" data-on={f.incompleteOnly || undefined}
+                      onClick={() => setF((p) => ({ ...p, incompleteOnly: !p.incompleteOnly }))}>
+                      Por completar · {incompleteCount}
+                    </button>
+                  </FChips>
+                </>
+              )}
             </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="w-24 shrink-0 text-xs uppercase tracking-wide text-muted">Frescura</span>
-              {FRIDGE_BUCKETS.map((b) => (
-                <button key={b.key} className="chip" data-on={f.fridge.includes(b.key) || undefined}
-                  onClick={() => toggle("fridge", b.key)}>{b.label}</button>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="w-24 shrink-0 text-xs uppercase tracking-wide text-muted">Estado</span>
-              {(["sin_probar", "cocinada", "cabecera"] as CookStatus[]).map((s) => (
-                <button key={s} className="chip" data-on={f.status.includes(s) || undefined}
-                  onClick={() => toggle("status", s)}>{COOK_STATUS_LABELS[s]}</button>
-              ))}
-            </div>
-            {incompleteCount > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="w-24 shrink-0 text-xs uppercase tracking-wide text-muted">Otros</span>
-                <button className="chip" data-on={f.incompleteOnly || undefined}
-                  onClick={() => setF((p) => ({ ...p, incompleteOnly: !p.incompleteOnly }))}>
-                  Por completar · {incompleteCount}
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -270,18 +300,9 @@ export function LibraryClient({
   );
 }
 
-function FilterRow({
-  label, options, active, onToggle, square,
-}: { label: string; options: string[]; active: string[]; onToggle: (v: string) => void; square?: boolean }) {
-  if (options.length === 0) return null;
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="w-24 shrink-0 text-xs uppercase tracking-wide text-muted">{label}</span>
-      {options.map((o) => (
-        <button key={o} className={square ? "chip rounded-md" : "chip"} data-on={active.includes(o) || undefined} onClick={() => onToggle(o)}>
-          {o}
-        </button>
-      ))}
-    </div>
-  );
+function FLabel({ children }: { children: React.ReactNode }) {
+  return <div className="pt-1.5 text-[11px] font-medium uppercase tracking-wide text-muted">{children}</div>;
+}
+function FChips({ children }: { children: React.ReactNode }) {
+  return <div className="flex flex-wrap items-center gap-1.5">{children}</div>;
 }

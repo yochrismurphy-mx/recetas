@@ -98,3 +98,10 @@ h1, h2, h3 {
   .input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-soft); }
   .input::placeholder { color: var(--color-muted); }
 }
+
+/* Compact chips inside the filter panel (unlayered: overrides .chip sizing). */
+.filter-panel .chip {
+  padding: 0.22rem 0.62rem;
+  font-size: 0.72rem;
+  gap: 0.25rem;
+}
