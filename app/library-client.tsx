@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { Children, useMemo, useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import type { Recipe, FilterState, CookStatus } from "@/lib/types";
 import { COOK_STATUS_LABELS } from "@/lib/types";
@@ -19,8 +19,9 @@ const TYPE_TINT: Record<string, string> = {
   "Salsas/Dips": "#f8e2da", Untables: "#f4e6d6",
 };
 
-function uniqSorted(values: string[]): string[] {
-  return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
+/** Order facet values by frequency (most-used first), tie-broken alphabetically. */
+function byFreq(values: string[], counts: Record<string, number>): string[] {
+  return [...values].sort((a, b) => (counts[b] ?? 0) - (counts[a] ?? 0) || a.localeCompare(b));
 }
 
 function Stars({ n }: { n: number | null }) {
@@ -45,6 +46,15 @@ export function LibraryClient({
   const [week, setWeek] = useState<Set<string>>(new Set(weekIds));
   const [f, setF] = useState<FilterState>(EMPTY_FILTERS);
   const [panelOpen, setPanelOpen] = useState(false);
+  // Desktop-only filter sidebar; collapse state persists across visits. Mobile
+  // ignores this and keeps the `panelOpen` dropdown below.
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  useEffect(() => {
+    if (localStorage.getItem("recetas:sidebar") === "0") setSidebarOpen(false);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("recetas:sidebar", sidebarOpen ? "1" : "0");
+  }, [sidebarOpen]);
   const incompleteCount = useMemo(
     () => recipes.filter(recipeIncomplete).length,
     [recipes],
@@ -62,10 +72,25 @@ export function LibraryClient({
     startWeek(() => toggleWeek(id));
   }
 
-  const allTypes = useMemo(
-    () => uniqSorted(recipes.map((r) => r.type).filter(Boolean) as string[]),
-    [recipes],
-  );
+  // Facet chips ordered by how many recipes carry each value (most common first).
+  const collCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const r of recipes) for (const c of r.collections) m[c] = (m[c] ?? 0) + 1;
+    return m;
+  }, [recipes]);
+  const typeCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const r of recipes) if (r.type) m[r.type] = (m[r.type] ?? 0) + 1;
+    return m;
+  }, [recipes]);
+  const tagCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const r of recipes) for (const t of r.tags) m[t] = (m[t] ?? 0) + 1;
+    return m;
+  }, [recipes]);
+  const collectionsByFreq = useMemo(() => byFreq(allCollections, collCounts), [allCollections, collCounts]);
+  const allTypes = useMemo(() => byFreq(Object.keys(typeCounts), typeCounts), [typeCounts]);
+  const tagsByFreq = useMemo(() => byFreq(allTags, tagCounts), [allTags, tagCounts]);
   const filtered = useMemo(() => {
     // Thanksgiving recipes are hidden by default (too particular); selecting the
     // Thanksgiving collection chip brings them back.
@@ -98,8 +123,163 @@ export function LibraryClient({
   f.status.forEach((s) => activeChips.push({ key: `s:${s}`, label: COOK_STATUS_LABELS[s], clear: () => toggle("status", s) }));
   if (f.incompleteOnly) activeChips.push({ key: "inc", label: "Por completar", clear: () => setF((p) => ({ ...p, incompleteOnly: false })) });
 
+  // Shared facet controls, rendered in the desktop sidebar and the mobile dropdown.
+  const filterGrid = (
+    <div className="grid grid-cols-[5.5rem_1fr] items-start gap-x-3 gap-y-2.5">
+      {allCollections.length > 0 && (
+        <>
+          <FLabel>Colección</FLabel>
+          <FChips>
+            {collectionsByFreq.map((c) => (
+              <button key={c} className="chip" data-on={f.collections.includes(c) || undefined} onClick={() => toggle("collections", c)}>{c}</button>
+            ))}
+          </FChips>
+        </>
+      )}
+      {allTypes.length > 0 && (
+        <>
+          <FLabel>Tipo</FLabel>
+          <FChips>
+            {allTypes.map((t) => (
+              <button key={t} className="chip rounded-md" data-on={f.types.includes(t) || undefined} onClick={() => toggle("types", t)}>{t}</button>
+            ))}
+          </FChips>
+        </>
+      )}
+      {allTags.length > 0 && (
+        <>
+          <FLabel>Etiqueta</FLabel>
+          <FChips>
+            {tagsByFreq.map((t) => (
+              <button key={t} className="chip" data-on={f.tags.includes(t) || undefined} onClick={() => toggle("tags", t)}>{t}</button>
+            ))}
+            <button
+              onClick={() => setF({ ...f, mode: f.mode === "all" ? "any" : "all" })}
+              className="ml-1 self-center text-[11px] text-muted underline decoration-dotted underline-offset-2 hover:text-ink"
+            >
+              {f.mode === "all" ? "coincidir todas" : "coincidir cualquiera"}
+            </button>
+          </FChips>
+        </>
+      )}
+
+      <div className="col-span-2 my-1 border-t border-line/70" />
+
+      <FLabel>Calificación</FLabel>
+      <FChips>
+        {RATING_OPTIONS.map((n) => (
+          <button key={n} className="chip" data-on={f.minRating === n || undefined}
+            onClick={() => setF((p) => ({ ...p, minRating: p.minRating === n ? null : n }))}>
+            {n}★{n < 5 ? "+" : ""}
+          </button>
+        ))}
+      </FChips>
+
+      <FLabel>Frescura</FLabel>
+      <FChips>
+        {FRIDGE_BUCKETS.map((b) => (
+          <button key={b.key} className="chip" data-on={f.fridge.includes(b.key) || undefined}
+            onClick={() => toggle("fridge", b.key)}>{b.label}</button>
+        ))}
+      </FChips>
+
+      <FLabel>Estado</FLabel>
+      <FChips>
+        {(["sin_probar", "cocinada", "cabecera"] as CookStatus[]).map((s) => (
+          <button key={s} className="chip" data-on={f.status.includes(s) || undefined}
+            onClick={() => toggle("status", s)}>{COOK_STATUS_LABELS[s]}</button>
+        ))}
+      </FChips>
+
+      {incompleteCount > 0 && (
+        <>
+          <FLabel>Otros</FLabel>
+          <FChips>
+            <button className="chip" data-on={f.incompleteOnly || undefined}
+              onClick={() => setF((p) => ({ ...p, incompleteOnly: !p.incompleteOnly }))}>
+              Por completar · {incompleteCount}
+            </button>
+          </FChips>
+        </>
+      )}
+    </div>
+  );
+
+  // Denser, full-width stacked version for the desktop sidebar: each header sits
+  // above its chips, which wrap across the full sidebar width (no tall narrow column).
+  const filterStack = (
+    <div className="space-y-2.5">
+      {allCollections.length > 0 && (
+        <FacetSection label="Colección">
+          {collectionsByFreq.map((c) => (
+            <button key={c} className="chip" data-on={f.collections.includes(c) || undefined} onClick={() => toggle("collections", c)}>{c}</button>
+          ))}
+        </FacetSection>
+      )}
+      {allTypes.length > 0 && (
+        <FacetSection label="Tipo" preview={8}>
+          {allTypes.map((t) => (
+            <button key={t} className="chip rounded-md" data-on={f.types.includes(t) || undefined} onClick={() => toggle("types", t)}>{t}</button>
+          ))}
+        </FacetSection>
+      )}
+      {allTags.length > 0 && (
+        <FacetSection
+          label="Etiqueta"
+          preview={8}
+          extra={
+            <button
+              onClick={() => setF({ ...f, mode: f.mode === "all" ? "any" : "all" })}
+              className="self-center text-[11px] text-muted underline decoration-dotted underline-offset-2 hover:text-ink"
+            >
+              {f.mode === "all" ? "coincidir todas" : "coincidir cualquiera"}
+            </button>
+          }
+        >
+          {tagsByFreq.map((t) => (
+            <button key={t} className="chip" data-on={f.tags.includes(t) || undefined} onClick={() => toggle("tags", t)}>{t}</button>
+          ))}
+        </FacetSection>
+      )}
+
+      <div className="border-t border-line/70" />
+
+      <FacetSection label="Calificación">
+        {RATING_OPTIONS.map((n) => (
+          <button key={n} className="chip" data-on={f.minRating === n || undefined}
+            onClick={() => setF((p) => ({ ...p, minRating: p.minRating === n ? null : n }))}>
+            {n}★{n < 5 ? "+" : ""}
+          </button>
+        ))}
+      </FacetSection>
+
+      <FacetSection label="Frescura">
+        {FRIDGE_BUCKETS.map((b) => (
+          <button key={b.key} className="chip" data-on={f.fridge.includes(b.key) || undefined}
+            onClick={() => toggle("fridge", b.key)}>{b.label}</button>
+        ))}
+      </FacetSection>
+
+      <FacetSection label="Estado">
+        {(["sin_probar", "cocinada", "cabecera"] as CookStatus[]).map((s) => (
+          <button key={s} className="chip" data-on={f.status.includes(s) || undefined}
+            onClick={() => toggle("status", s)}>{COOK_STATUS_LABELS[s]}</button>
+        ))}
+      </FacetSection>
+
+      {incompleteCount > 0 && (
+        <FacetSection label="Otros">
+          <button className="chip" data-on={f.incompleteOnly || undefined}
+            onClick={() => setF((p) => ({ ...p, incompleteOnly: !p.incompleteOnly }))}>
+            Por completar · {incompleteCount}
+          </button>
+        </FacetSection>
+      )}
+    </div>
+  );
+
   return (
-    <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
+    <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
         <div>
           <h1 className="font-display text-3xl font-medium tracking-tight sm:text-4xl">
@@ -123,123 +303,81 @@ export function LibraryClient({
         </div>
       </header>
 
-      <div className="mt-6 space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            value={f.q}
-            onChange={(e) => setF({ ...f, q: e.target.value })}
-            placeholder="Buscar por nombre o ingrediente…"
-            className="input max-w-md"
-          />
-          <button
-            className="chip"
-            data-on={(panelOpen || activeChips.length > 0) || undefined}
-            onClick={() => setPanelOpen((o) => !o)}
-          >
-            Filtros{activeChips.length ? ` · ${activeChips.length}` : ""}
-          </button>
-        </div>
-
-        {activeChips.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {activeChips.map((c) => (
-              <button
-                key={c.key}
-                onClick={c.clear}
-                className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-0.5 text-[12px] text-white transition-colors hover:bg-accent-strong"
-              >
-                {c.label} <span className="text-white/80">✕</span>
-              </button>
-            ))}
-            <button onClick={clearAll} className="ml-1 text-xs text-muted underline decoration-dotted underline-offset-2 hover:text-ink">
-              Limpiar
-            </button>
-          </div>
-        )}
-
-        {panelOpen && (
-          <div className="filter-panel rounded-2xl border border-line bg-card p-4">
-            <div className="grid grid-cols-[5.5rem_1fr] items-start gap-x-3 gap-y-2.5">
-              {allCollections.length > 0 && (
-                <>
-                  <FLabel>Colección</FLabel>
-                  <FChips>
-                    {allCollections.map((c) => (
-                      <button key={c} className="chip" data-on={f.collections.includes(c) || undefined} onClick={() => toggle("collections", c)}>{c}</button>
-                    ))}
-                  </FChips>
-                </>
-              )}
-              {allTypes.length > 0 && (
-                <>
-                  <FLabel>Tipo</FLabel>
-                  <FChips>
-                    {allTypes.map((t) => (
-                      <button key={t} className="chip rounded-md" data-on={f.types.includes(t) || undefined} onClick={() => toggle("types", t)}>{t}</button>
-                    ))}
-                  </FChips>
-                </>
-              )}
-              {allTags.length > 0 && (
-                <>
-                  <FLabel>Etiqueta</FLabel>
-                  <FChips>
-                    {allTags.map((t) => (
-                      <button key={t} className="chip" data-on={f.tags.includes(t) || undefined} onClick={() => toggle("tags", t)}>{t}</button>
-                    ))}
-                    <button
-                      onClick={() => setF({ ...f, mode: f.mode === "all" ? "any" : "all" })}
-                      className="ml-1 self-center text-[11px] text-muted underline decoration-dotted underline-offset-2 hover:text-ink"
-                    >
-                      {f.mode === "all" ? "coincidir todas" : "coincidir cualquiera"}
-                    </button>
-                  </FChips>
-                </>
-              )}
-
-              <div className="col-span-2 my-1 border-t border-line/70" />
-
-              <FLabel>Calificación</FLabel>
-              <FChips>
-                {RATING_OPTIONS.map((n) => (
-                  <button key={n} className="chip" data-on={f.minRating === n || undefined}
-                    onClick={() => setF((p) => ({ ...p, minRating: p.minRating === n ? null : n }))}>
-                    {n}★{n < 5 ? "+" : ""}
-                  </button>
-                ))}
-              </FChips>
-
-              <FLabel>Frescura</FLabel>
-              <FChips>
-                {FRIDGE_BUCKETS.map((b) => (
-                  <button key={b.key} className="chip" data-on={f.fridge.includes(b.key) || undefined}
-                    onClick={() => toggle("fridge", b.key)}>{b.label}</button>
-                ))}
-              </FChips>
-
-              <FLabel>Estado</FLabel>
-              <FChips>
-                {(["sin_probar", "cocinada", "cabecera"] as CookStatus[]).map((s) => (
-                  <button key={s} className="chip" data-on={f.status.includes(s) || undefined}
-                    onClick={() => toggle("status", s)}>{COOK_STATUS_LABELS[s]}</button>
-                ))}
-              </FChips>
-
-              {incompleteCount > 0 && (
-                <>
-                  <FLabel>Otros</FLabel>
-                  <FChips>
-                    <button className="chip" data-on={f.incompleteOnly || undefined}
-                      onClick={() => setF((p) => ({ ...p, incompleteOnly: !p.incompleteOnly }))}>
-                      Por completar · {incompleteCount}
-                    </button>
-                  </FChips>
-                </>
+      <div className="mt-6 md:flex md:items-start md:gap-7">
+        {sidebarOpen && (
+          <aside className="hidden md:block md:w-64 md:shrink-0">
+            <div className="sticky top-8 rounded-2xl border border-line bg-card p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-[11px] font-medium uppercase tracking-wide text-muted">
+                  Filtros{activeChips.length ? ` · ${activeChips.length}` : ""}
+                </span>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="text-xs text-muted underline decoration-dotted underline-offset-2 hover:text-ink"
+                >
+                  Ocultar
+                </button>
+              </div>
+              <div className="filter-sidebar">{filterStack}</div>
+              {activeChips.length > 0 && (
+                <button onClick={clearAll} className="mt-3 text-xs text-muted underline decoration-dotted underline-offset-2 hover:text-ink">
+                  Limpiar filtros
+                </button>
               )}
             </div>
-          </div>
+          </aside>
         )}
-      </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {!sidebarOpen && (
+                <button
+                  className="chip hidden md:inline-flex"
+                  data-on={activeChips.length > 0 || undefined}
+                  onClick={() => setSidebarOpen(true)}
+                >
+                  Filtros{activeChips.length ? ` · ${activeChips.length}` : ""}
+                </button>
+              )}
+              <input
+                value={f.q}
+                onChange={(e) => setF({ ...f, q: e.target.value })}
+                placeholder="Buscar por nombre o ingrediente…"
+                className="input max-w-md"
+              />
+              <button
+                className="chip md:hidden"
+                data-on={(panelOpen || activeChips.length > 0) || undefined}
+                onClick={() => setPanelOpen((o) => !o)}
+              >
+                Filtros{activeChips.length ? ` · ${activeChips.length}` : ""}
+              </button>
+            </div>
+
+            {activeChips.length > 0 && (
+              <div className={`flex flex-wrap items-center gap-1.5 ${sidebarOpen ? "md:hidden" : ""}`}>
+                {activeChips.map((c) => (
+                  <button
+                    key={c.key}
+                    onClick={c.clear}
+                    className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-0.5 text-[12px] text-white transition-colors hover:bg-accent-strong"
+                  >
+                    {c.label} <span className="text-white/80">✕</span>
+                  </button>
+                ))}
+                <button onClick={clearAll} className="ml-1 text-xs text-muted underline decoration-dotted underline-offset-2 hover:text-ink">
+                  Limpiar
+                </button>
+              </div>
+            )}
+
+            {panelOpen && (
+              <div className="filter-panel rounded-2xl border border-line bg-card p-4 md:hidden">
+                {filterGrid}
+              </div>
+            )}
+          </div>
 
       <div className="mt-7 grid grid-cols-[repeat(auto-fill,minmax(195px,1fr))] gap-4">
         {filtered.map((r) => (
@@ -303,9 +441,11 @@ export function LibraryClient({
           </Link>
         ))}
       </div>
-      {filtered.length === 0 && (
-        <p className="mt-16 text-center text-muted">Nada coincide con esos filtros.</p>
-      )}
+          {filtered.length === 0 && (
+            <p className="mt-16 text-center text-muted">Nada coincide con esos filtros.</p>
+          )}
+        </div>
+      </div>
     </main>
   );
 }
@@ -315,4 +455,46 @@ function FLabel({ children }: { children: React.ReactNode }) {
 }
 function FChips({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-wrap items-center gap-1.5">{children}</div>;
+}
+function FacetSection({
+  label,
+  preview,
+  extra,
+  children,
+}: {
+  label: string;
+  preview?: number;
+  extra?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(true);
+  const [showAll, setShowAll] = useState(false);
+  const items = Children.toArray(children);
+  const canTruncate = preview != null && items.length > preview;
+  const shown = canTruncate && !showAll ? items.slice(0, preview) : items;
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between text-[11px] font-medium uppercase tracking-wide text-muted transition-colors hover:text-ink"
+      >
+        <span>{label}</span>
+        <span className="text-[8px] opacity-70">{open ? "▼" : "▶"}</span>
+      </button>
+      {open && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+          {shown}
+          {canTruncate && (
+            <button
+              onClick={() => setShowAll((s) => !s)}
+              className="text-[11px] text-muted underline decoration-dotted underline-offset-2 hover:text-ink"
+            >
+              {showAll ? "ver menos" : `+${items.length - preview!} más`}
+            </button>
+          )}
+          {extra}
+        </div>
+      )}
+    </div>
+  );
 }

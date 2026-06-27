@@ -31,6 +31,15 @@ Conventions: `[ ]` open · `[~]` partially done · `[x]` done (kept briefly for 
 
 - [ ] **EN/ES toggle**, careful Mexican-Spanish (precise MX ingredient names). Decide: persist both languages per recipe (editable, toggle) vs. on-the-fly. Recipes currently stored in mixed original languages.
 
+## Recipe structure & organization
+
+- [ ] **Combine / split recipes (component sub-recipes)** — some recipes bundle multiple parts (a salad or protein PLUS a sauce/dressing), but Chris often wants to make just one part (e.g. only the sauce). Today that forces an awkward choice: one combined recipe you can't partially cook, or two separate entries that clutter search. Explore ways to model a recipe as having named components/sub-recipes, so you can: (a) keep them under one library entry instead of two, (b) add just one component to the week, and (c) split a component out or merge a standalone one back in. Open design Qs: data model (sub-recipes vs. tagged ingredient/step groups — note ingredients/steps already support `label` groups), how the cook sheet + shopping list handle a partial selection, and the search/library UX so components don't double-list. Raised 2026-06-27.
+
+## Recipe enrichment (per-recipe extras)
+
+- [ ] **Show / embed a recipe's video** — many recipes have an associated Instagram or YouTube video. Want to (a) detect + store a video link per recipe via a search pass across the library (check the source page, IG, YouTube for a matching video), (b) show an indicator on the card/detail that a video exists, and (c) optionally embed the video inline in the recipe detail so it plays without leaving the app. Open Qs: storage (new `video_url` column), how matching works + false-positive control, embed vs. link, IG embed limitations (oEmbed/login walls). Raised 2026-06-27.
+- [ ] **Flag special equipment per recipe** (Chris not yet convinced — parking so it isn't lost) — some recipes need specific gear, e.g. Mantequilla de Nueces needs a high-powered blender. Could surface a small "equipo especial" note on the recipe. Open Q: free-text vs. a controlled equipment list; whether the data-entry is worth it. Raised 2026-06-27.
+
 ## Recipe data quality / cleanup
 
 - [ ] Fill in recipes missing ingredients or steps — use the "Por completar" filter to find them.

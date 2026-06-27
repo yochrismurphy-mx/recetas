@@ -105,3 +105,9 @@ h1, h2, h3 {
   font-size: 0.72rem;
   gap: 0.25rem;
 }
+/* Desktop sidebar: denser still, to fit more facets without scrolling. */
+.filter-sidebar .chip {
+  padding: 0.16rem 0.5rem;
+  font-size: 0.7rem;
+  gap: 0.2rem;
+}
