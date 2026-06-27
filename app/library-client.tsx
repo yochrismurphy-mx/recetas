@@ -66,7 +66,17 @@ export function LibraryClient({
     () => uniqSorted(recipes.map((r) => r.type).filter(Boolean) as string[]),
     [recipes],
   );
-  const filtered = useMemo(() => applyFilters(recipes, f), [recipes, f]);
+  const filtered = useMemo(() => {
+    // Thanksgiving recipes are hidden by default (too particular); selecting the
+    // Thanksgiving collection chip brings them back.
+    const base = f.collections.includes("Thanksgiving")
+      ? recipes
+      : recipes.filter((r) => !r.collections.includes("Thanksgiving"));
+    // Default sort: highest star rating first, unrated last, then A–Z.
+    return applyFilters(base, f).sort(
+      (a, b) => (b.rating ?? -1) - (a.rating ?? -1) || a.title.localeCompare(b.title),
+    );
+  }, [recipes, f]);
 
   function toggle(facet: "types" | "collections" | "tags" | "fridge" | "status", value: string) {
     setF((prev) => {
