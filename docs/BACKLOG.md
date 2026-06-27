@@ -27,9 +27,10 @@ Conventions: `[ ]` open · `[~]` partially done · `[x]` done (kept briefly for 
 - [ ] **Beyond-recipe buys** — capture what we want / usually buy outside the recipes; have it prompt us about these
 - [ ] **Automate Uber Eats / Sumesa cart** — push the finished list into a Sumesa shopping cart
 
-## Translation (deferred from 2026-06-22)
+## Translation
 
-- [ ] **EN/ES toggle**, careful Mexican-Spanish (precise MX ingredient names). Decide: persist both languages per recipe (editable, toggle) vs. on-the-fly. Recipes currently stored in mixed original languages.
+- [~] **EN/ES toggle**, careful Mexican-Spanish (precise MX ingredient names). DECIDED 2026-06-27: persist both languages per recipe (`title_es/_en`, `ingredients_es/_en`, `steps_es/_en`); default language Spanish; cook sheet (hoja) stays Spanish always. Existing Spanish is copied verbatim and never re-translated (trusted); the model only fills the missing side (mostly ES→EN, since 96 of 124 recipes are Spanish). IN PROGRESS: schema migration pending (run via Supabase SQL editor — pooler self-signed cert blocks direct `pg` DDL), then a 5-recipe sample for quality sign-off before the full batch, then the toggle + UI-string i18n.
+- [ ] **Edit-sync between the two language versions** (raised 2026-06-27) — once both languages are stored, editing one side makes the other stale. Need a rule for: which column an edit writes to (the currently-displayed language), and how the other side updates. Recommended approach: do NOT auto-re-translate on save (that would silently clobber a hand-corrected translation and burn an API call every edit). Instead mark the other side **stale** (a per-recipe `translation_stale` flag or per-field marker) and offer a one-click "Actualizar traducción" that regenerates the stale side for review. This respects the "trust existing / hand-correctable" principle. Also resolve source-of-truth: make `_es/_en` canonical and retire the legacy `title/ingredients/steps` columns. Open Qs: per-field vs whole-recipe staleness; whether to show a small "traducción desactualizada" badge.
 
 ## Recipe structure & organization
 
