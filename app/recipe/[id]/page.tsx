@@ -1,5 +1,7 @@
 import { getServerClient } from "@/lib/supabase";
 import { currentPlanId } from "@/lib/plan";
+import { localizeContent } from "@/lib/i18n";
+import { getLang } from "@/lib/lang-server";
 import { notFound } from "next/navigation";
 import { RecipeClient } from "./recipe-client";
 
@@ -8,6 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const s = getServerClient();
+  const lang = await getLang();
 
   const { data: r } = await s
     .from("recipes")
@@ -21,9 +24,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const { data: allCollections } = await s.from("collections").select("id, name").order("name");
   const { data: allTags } = await s.from("tags").select("id, name").order("name");
 
+  const c = localizeContent(r as any, lang);
   const recipe = {
     id: r.id as string,
-    title: r.title as string,
+    title: c.title,
     emoji: r.emoji as string | null,
     image_url: r.image_url as string | null,
     type: r.type as string | null,
@@ -34,8 +38,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     times_cooked: r.times_cooked as number,
     cook_status: (r.cook_status ?? "sin_probar") as "sin_probar" | "cocinada" | "cabecera",
     source_url: r.source_url as string | null,
-    ingredients: (r.ingredients ?? []) as { label: string | null; items: string[] }[],
-    steps: (r.steps ?? []) as { label: string | null; items: string[] }[],
+    ingredients: c.ingredients,
+    steps: c.steps,
     collectionIds: (r.recipe_collections ?? []).map((x: any) => x.collection_id as string),
     tagIds: (r.recipe_tags ?? []).map((x: any) => x.tag_id as string),
     notes: ((r.recipe_notes ?? []) as any[])

@@ -1,0 +1,74 @@
+import type { Group } from "./types";
+
+export type Lang = "es" | "en";
+
+/** Pick a recipe's content for the chosen language, falling back to the legacy
+ * columns (and then the other language) so nothing ever renders blank. */
+export function localizeContent(
+  row: {
+    title: string; title_es?: string | null; title_en?: string | null;
+    ingredients?: Group[] | null; ingredients_es?: Group[] | null; ingredients_en?: Group[] | null;
+    steps?: Group[] | null; steps_es?: Group[] | null; steps_en?: Group[] | null;
+  },
+  lang: Lang,
+): { title: string; ingredients: Group[]; steps: Group[] } {
+  const nonEmpty = (g?: Group[] | null) =>
+    Array.isArray(g) && g.some((x) => (x.items ?? []).some((i) => i && i.trim())) ? g : null;
+  const title = (lang === "en" ? row.title_en : row.title_es) || row.title;
+  const ing = (lang === "en" ? nonEmpty(row.ingredients_en) : nonEmpty(row.ingredients_es)) ?? row.ingredients ?? [];
+  const steps = (lang === "en" ? nonEmpty(row.steps_en) : nonEmpty(row.steps_es)) ?? row.steps ?? [];
+  return { title, ingredients: ing, steps };
+}
+
+/** Display labels for the fixed Tipo values (stored in Spanish). */
+export const TYPE_LABELS: Record<Lang, Record<string, string>> = {
+  es: {},
+  en: {
+    Aves: "Poultry", Carne: "Meat", Pescado: "Fish/Seafood", Leguminosas: "Legumes",
+    Ensalada: "Salad", "Sopa/Curry": "Soup/Curry", "Granos/Pasta": "Grains/Pasta",
+    Verduras: "Vegetables", Postre: "Dessert", Desayuno: "Breakfast", "Pan/Masa": "Bread/Dough",
+    "Salsas/Dips": "Sauces/Dips", Untables: "Spreads",
+  },
+};
+
+/** Display labels for the known collection names. */
+export const COLLECTION_LABELS: Record<Lang, Record<string, string>> = {
+  es: {},
+  en: { Semanal: "Weekly", Personal: "Personal", Thanksgiving: "Thanksgiving", "Home Sweet Home": "Home Sweet Home" },
+};
+
+export const COOK_STATUS_LABELS: Record<Lang, Record<string, string>> = {
+  es: { sin_probar: "Sin probar", cocinada: "Ya cocinada", cabecera: "De cabecera" },
+  en: { sin_probar: "Untried", cocinada: "Cooked", cabecera: "Go-to" },
+};
+
+export const typeLabel = (lang: Lang, v: string | null) => (v ? TYPE_LABELS[lang][v] ?? v : "");
+export const collLabel = (lang: Lang, v: string) => COLLECTION_LABELS[lang][v] ?? v;
+
+/** UI chrome strings. */
+export const UI: Record<Lang, Record<string, string>> = {
+  es: {
+    title: "La cocina de Norma y Chris", thisWeek: "Esta semana", shopping: "Compras",
+    addRecipe: "Agregar receta", recipe: "receta", recipes: "recetas", of: "de",
+    searchPlaceholder: "Buscar por nombre o ingrediente…", filters: "Filtros", hide: "Ocultar",
+    clear: "Limpiar", clearFilters: "Limpiar filtros", collection: "Colección", type: "Tipo",
+    tag: "Etiqueta", rating: "Calificación", freshness: "Frescura", status: "Estado", other: "Otros",
+    matchAll: "coincidir todas", matchAny: "coincidir cualquiera", orMore: "o más",
+    fridgeShort: "≤3 días", fridgeMid: "4–6 días", fridgeLong: "7+ días",
+    toComplete: "Por completar", showLess: "ver menos", more: "más",
+    noMatch: "Nada coincide con esos filtros.", days: "días",
+    goto: "De cabecera", cooked: "cocinada", addWeek: "+ semana", inWeek: "✓ semana",
+  },
+  en: {
+    title: "Norma & Chris's Kitchen", thisWeek: "This week", shopping: "Shopping",
+    addRecipe: "Add recipe", recipe: "recipe", recipes: "recipes", of: "of",
+    searchPlaceholder: "Search by name or ingredient…", filters: "Filters", hide: "Hide",
+    clear: "Clear", clearFilters: "Clear filters", collection: "Collection", type: "Type",
+    tag: "Tag", rating: "Rating", freshness: "Freshness", status: "Status", other: "Other",
+    matchAll: "match all", matchAny: "match any", orMore: "or more",
+    fridgeShort: "≤3 days", fridgeMid: "4–6 days", fridgeLong: "7+ days",
+    toComplete: "Incomplete", showLess: "show less", more: "more",
+    noMatch: "Nothing matches those filters.", days: "days",
+    goto: "Go-to", cooked: "cooked", addWeek: "+ week", inWeek: "✓ week",
+  },
+};

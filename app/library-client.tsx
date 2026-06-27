@@ -3,8 +3,9 @@
 import { Children, useMemo, useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import type { Recipe, FilterState, CookStatus } from "@/lib/types";
-import { COOK_STATUS_LABELS } from "@/lib/types";
 import { applyFilters, recipeIncomplete, FRIDGE_BUCKETS, RATING_OPTIONS } from "@/lib/filters";
+import { UI, typeLabel, collLabel, COOK_STATUS_LABELS as STATUS_LABELS, type Lang } from "@/lib/i18n";
+import { LangToggle } from "./lang-toggle";
 import { toggleWeek } from "./semana/actions";
 
 const EMPTY_FILTERS: FilterState = {
@@ -35,12 +36,13 @@ function Stars({ n }: { n: number | null }) {
 }
 
 export function LibraryClient({
-  recipes, weekIds, allCollections, allTags,
+  recipes, weekIds, allCollections, allTags, lang,
 }: {
   recipes: Recipe[];
   weekIds: string[];
   allCollections: string[];
   allTags: string[];
+  lang: Lang;
 }) {
   const [, startWeek] = useTransition();
   const [week, setWeek] = useState<Set<string>>(new Set(weekIds));
@@ -114,50 +116,54 @@ export function LibraryClient({
     setF((prev) => ({ ...EMPTY_FILTERS, q: prev.q }));
   }
 
+  const t = UI[lang];
+  const statusLabels = STATUS_LABELS[lang];
+  const fridgeLabel = (k: string) => (k === "short" ? t.fridgeShort : k === "mid" ? t.fridgeMid : t.fridgeLong);
+
   const activeChips: { key: string; label: string; clear: () => void }[] = [];
-  f.collections.forEach((v) => activeChips.push({ key: `c:${v}`, label: v, clear: () => toggle("collections", v) }));
-  f.types.forEach((v) => activeChips.push({ key: `t:${v}`, label: v, clear: () => toggle("types", v) }));
+  f.collections.forEach((v) => activeChips.push({ key: `c:${v}`, label: collLabel(lang, v), clear: () => toggle("collections", v) }));
+  f.types.forEach((v) => activeChips.push({ key: `t:${v}`, label: typeLabel(lang, v), clear: () => toggle("types", v) }));
   f.tags.forEach((v) => activeChips.push({ key: `g:${v}`, label: v, clear: () => toggle("tags", v) }));
-  if (f.minRating != null) activeChips.push({ key: "r", label: `${f.minRating}★ o más`, clear: () => setF((p) => ({ ...p, minRating: null })) });
-  f.fridge.forEach((k) => activeChips.push({ key: `f:${k}`, label: FRIDGE_BUCKETS.find((b) => b.key === k)?.label ?? k, clear: () => toggle("fridge", k) }));
-  f.status.forEach((s) => activeChips.push({ key: `s:${s}`, label: COOK_STATUS_LABELS[s], clear: () => toggle("status", s) }));
-  if (f.incompleteOnly) activeChips.push({ key: "inc", label: "Por completar", clear: () => setF((p) => ({ ...p, incompleteOnly: false })) });
+  if (f.minRating != null) activeChips.push({ key: "r", label: `${f.minRating}★ ${t.orMore}`, clear: () => setF((p) => ({ ...p, minRating: null })) });
+  f.fridge.forEach((k) => activeChips.push({ key: `f:${k}`, label: fridgeLabel(k), clear: () => toggle("fridge", k) }));
+  f.status.forEach((s) => activeChips.push({ key: `s:${s}`, label: statusLabels[s], clear: () => toggle("status", s) }));
+  if (f.incompleteOnly) activeChips.push({ key: "inc", label: t.toComplete, clear: () => setF((p) => ({ ...p, incompleteOnly: false })) });
 
   // Shared facet controls, rendered in the desktop sidebar and the mobile dropdown.
   const filterGrid = (
     <div className="grid grid-cols-[5.5rem_1fr] items-start gap-x-3 gap-y-2.5">
       {allCollections.length > 0 && (
         <>
-          <FLabel>Colección</FLabel>
+          <FLabel>{t.collection}</FLabel>
           <FChips>
             {collectionsByFreq.map((c) => (
-              <button key={c} className="chip" data-on={f.collections.includes(c) || undefined} onClick={() => toggle("collections", c)}>{c}</button>
+              <button key={c} className="chip" data-on={f.collections.includes(c) || undefined} onClick={() => toggle("collections", c)}>{collLabel(lang, c)}</button>
             ))}
           </FChips>
         </>
       )}
       {allTypes.length > 0 && (
         <>
-          <FLabel>Tipo</FLabel>
+          <FLabel>{t.type}</FLabel>
           <FChips>
-            {allTypes.map((t) => (
-              <button key={t} className="chip rounded-md" data-on={f.types.includes(t) || undefined} onClick={() => toggle("types", t)}>{t}</button>
+            {allTypes.map((ty) => (
+              <button key={ty} className="chip rounded-md" data-on={f.types.includes(ty) || undefined} onClick={() => toggle("types", ty)}>{typeLabel(lang, ty)}</button>
             ))}
           </FChips>
         </>
       )}
       {allTags.length > 0 && (
         <>
-          <FLabel>Etiqueta</FLabel>
+          <FLabel>{t.tag}</FLabel>
           <FChips>
-            {tagsByFreq.map((t) => (
-              <button key={t} className="chip" data-on={f.tags.includes(t) || undefined} onClick={() => toggle("tags", t)}>{t}</button>
+            {tagsByFreq.map((tg) => (
+              <button key={tg} className="chip" data-on={f.tags.includes(tg) || undefined} onClick={() => toggle("tags", tg)}>{tg}</button>
             ))}
             <button
               onClick={() => setF({ ...f, mode: f.mode === "all" ? "any" : "all" })}
               className="ml-1 self-center text-[11px] text-muted underline decoration-dotted underline-offset-2 hover:text-ink"
             >
-              {f.mode === "all" ? "coincidir todas" : "coincidir cualquiera"}
+              {f.mode === "all" ? t.matchAll : t.matchAny}
             </button>
           </FChips>
         </>
@@ -165,7 +171,7 @@ export function LibraryClient({
 
       <div className="col-span-2 my-1 border-t border-line/70" />
 
-      <FLabel>Calificación</FLabel>
+      <FLabel>{t.rating}</FLabel>
       <FChips>
         {RATING_OPTIONS.map((n) => (
           <button key={n} className="chip" data-on={f.minRating === n || undefined}
@@ -175,29 +181,29 @@ export function LibraryClient({
         ))}
       </FChips>
 
-      <FLabel>Frescura</FLabel>
+      <FLabel>{t.freshness}</FLabel>
       <FChips>
         {FRIDGE_BUCKETS.map((b) => (
           <button key={b.key} className="chip" data-on={f.fridge.includes(b.key) || undefined}
-            onClick={() => toggle("fridge", b.key)}>{b.label}</button>
+            onClick={() => toggle("fridge", b.key)}>{fridgeLabel(b.key)}</button>
         ))}
       </FChips>
 
-      <FLabel>Estado</FLabel>
+      <FLabel>{t.status}</FLabel>
       <FChips>
         {(["sin_probar", "cocinada", "cabecera"] as CookStatus[]).map((s) => (
           <button key={s} className="chip" data-on={f.status.includes(s) || undefined}
-            onClick={() => toggle("status", s)}>{COOK_STATUS_LABELS[s]}</button>
+            onClick={() => toggle("status", s)}>{statusLabels[s]}</button>
         ))}
       </FChips>
 
       {incompleteCount > 0 && (
         <>
-          <FLabel>Otros</FLabel>
+          <FLabel>{t.other}</FLabel>
           <FChips>
             <button className="chip" data-on={f.incompleteOnly || undefined}
               onClick={() => setF((p) => ({ ...p, incompleteOnly: !p.incompleteOnly }))}>
-              Por completar · {incompleteCount}
+              {t.toComplete} · {incompleteCount}
             </button>
           </FChips>
         </>
@@ -210,41 +216,43 @@ export function LibraryClient({
   const filterStack = (
     <div className="space-y-2.5">
       {allCollections.length > 0 && (
-        <FacetSection label="Colección">
+        <FacetSection label={t.collection} moreLabel={t.more} lessLabel={t.showLess}>
           {collectionsByFreq.map((c) => (
-            <button key={c} className="chip" data-on={f.collections.includes(c) || undefined} onClick={() => toggle("collections", c)}>{c}</button>
+            <button key={c} className="chip" data-on={f.collections.includes(c) || undefined} onClick={() => toggle("collections", c)}>{collLabel(lang, c)}</button>
           ))}
         </FacetSection>
       )}
       {allTypes.length > 0 && (
-        <FacetSection label="Tipo" preview={8}>
-          {allTypes.map((t) => (
-            <button key={t} className="chip rounded-md" data-on={f.types.includes(t) || undefined} onClick={() => toggle("types", t)}>{t}</button>
+        <FacetSection label={t.type} preview={8} moreLabel={t.more} lessLabel={t.showLess}>
+          {allTypes.map((ty) => (
+            <button key={ty} className="chip rounded-md" data-on={f.types.includes(ty) || undefined} onClick={() => toggle("types", ty)}>{typeLabel(lang, ty)}</button>
           ))}
         </FacetSection>
       )}
       {allTags.length > 0 && (
         <FacetSection
-          label="Etiqueta"
+          label={t.tag}
           preview={8}
+          moreLabel={t.more}
+          lessLabel={t.showLess}
           extra={
             <button
               onClick={() => setF({ ...f, mode: f.mode === "all" ? "any" : "all" })}
               className="self-center text-[11px] text-muted underline decoration-dotted underline-offset-2 hover:text-ink"
             >
-              {f.mode === "all" ? "coincidir todas" : "coincidir cualquiera"}
+              {f.mode === "all" ? t.matchAll : t.matchAny}
             </button>
           }
         >
-          {tagsByFreq.map((t) => (
-            <button key={t} className="chip" data-on={f.tags.includes(t) || undefined} onClick={() => toggle("tags", t)}>{t}</button>
+          {tagsByFreq.map((tg) => (
+            <button key={tg} className="chip" data-on={f.tags.includes(tg) || undefined} onClick={() => toggle("tags", tg)}>{tg}</button>
           ))}
         </FacetSection>
       )}
 
       <div className="border-t border-line/70" />
 
-      <FacetSection label="Calificación">
+      <FacetSection label={t.rating} moreLabel={t.more} lessLabel={t.showLess}>
         {RATING_OPTIONS.map((n) => (
           <button key={n} className="chip" data-on={f.minRating === n || undefined}
             onClick={() => setF((p) => ({ ...p, minRating: p.minRating === n ? null : n }))}>
@@ -253,25 +261,25 @@ export function LibraryClient({
         ))}
       </FacetSection>
 
-      <FacetSection label="Frescura">
+      <FacetSection label={t.freshness} moreLabel={t.more} lessLabel={t.showLess}>
         {FRIDGE_BUCKETS.map((b) => (
           <button key={b.key} className="chip" data-on={f.fridge.includes(b.key) || undefined}
-            onClick={() => toggle("fridge", b.key)}>{b.label}</button>
+            onClick={() => toggle("fridge", b.key)}>{fridgeLabel(b.key)}</button>
         ))}
       </FacetSection>
 
-      <FacetSection label="Estado">
+      <FacetSection label={t.status} moreLabel={t.more} lessLabel={t.showLess}>
         {(["sin_probar", "cocinada", "cabecera"] as CookStatus[]).map((s) => (
           <button key={s} className="chip" data-on={f.status.includes(s) || undefined}
-            onClick={() => toggle("status", s)}>{COOK_STATUS_LABELS[s]}</button>
+            onClick={() => toggle("status", s)}>{statusLabels[s]}</button>
         ))}
       </FacetSection>
 
       {incompleteCount > 0 && (
-        <FacetSection label="Otros">
+        <FacetSection label={t.other} moreLabel={t.more} lessLabel={t.showLess}>
           <button className="chip" data-on={f.incompleteOnly || undefined}
             onClick={() => setF((p) => ({ ...p, incompleteOnly: !p.incompleteOnly }))}>
-            Por completar · {incompleteCount}
+            {t.toComplete} · {incompleteCount}
           </button>
         </FacetSection>
       )}
@@ -283,22 +291,23 @@ export function LibraryClient({
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
         <div>
           <h1 className="font-display text-3xl font-medium tracking-tight sm:text-4xl">
-            La cocina de Norma y Chris<span className="text-accent">.</span>
+            {t.title}<span className="text-accent">.</span>
           </h1>
           <p className="mt-1 text-sm text-muted">
-            {filtered.length} {filtered.length === 1 ? "receta" : "recetas"}
-            {filtered.length !== recipes.length ? ` de ${recipes.length}` : ""}
+            {filtered.length} {filtered.length === 1 ? t.recipe : t.recipes}
+            {filtered.length !== recipes.length ? ` ${t.of} ${recipes.length}` : ""}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <LangToggle lang={lang} />
           <Link href="/semana" className="btn btn-ghost">
-            Esta semana · {week.size}
+            {t.thisWeek} · {week.size}
           </Link>
           <Link href="/compras" className="btn btn-ghost">
-            Compras
+            {t.shopping}
           </Link>
           <Link href="/agregar" className="btn btn-primary">
-            Agregar receta
+            {t.addRecipe}
           </Link>
         </div>
       </header>
@@ -309,19 +318,19 @@ export function LibraryClient({
             <div className="sticky top-8 rounded-2xl border border-line bg-card p-4">
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-[11px] font-medium uppercase tracking-wide text-muted">
-                  Filtros{activeChips.length ? ` · ${activeChips.length}` : ""}
+                  {t.filters}{activeChips.length ? ` · ${activeChips.length}` : ""}
                 </span>
                 <button
                   onClick={() => setSidebarOpen(false)}
                   className="text-xs text-muted underline decoration-dotted underline-offset-2 hover:text-ink"
                 >
-                  Ocultar
+                  {t.hide}
                 </button>
               </div>
               <div className="filter-sidebar">{filterStack}</div>
               {activeChips.length > 0 && (
                 <button onClick={clearAll} className="mt-3 text-xs text-muted underline decoration-dotted underline-offset-2 hover:text-ink">
-                  Limpiar filtros
+                  {t.clearFilters}
                 </button>
               )}
             </div>
@@ -337,13 +346,13 @@ export function LibraryClient({
                   data-on={activeChips.length > 0 || undefined}
                   onClick={() => setSidebarOpen(true)}
                 >
-                  Filtros{activeChips.length ? ` · ${activeChips.length}` : ""}
+                  {t.filters}{activeChips.length ? ` · ${activeChips.length}` : ""}
                 </button>
               )}
               <input
                 value={f.q}
                 onChange={(e) => setF({ ...f, q: e.target.value })}
-                placeholder="Buscar por nombre o ingrediente…"
+                placeholder={t.searchPlaceholder}
                 className="input max-w-md"
               />
               <button
@@ -351,7 +360,7 @@ export function LibraryClient({
                 data-on={(panelOpen || activeChips.length > 0) || undefined}
                 onClick={() => setPanelOpen((o) => !o)}
               >
-                Filtros{activeChips.length ? ` · ${activeChips.length}` : ""}
+                {t.filters}{activeChips.length ? ` · ${activeChips.length}` : ""}
               </button>
             </div>
 
@@ -367,7 +376,7 @@ export function LibraryClient({
                   </button>
                 ))}
                 <button onClick={clearAll} className="ml-1 text-xs text-muted underline decoration-dotted underline-offset-2 hover:text-ink">
-                  Limpiar
+                  {t.clear}
                 </button>
               </div>
             )}
@@ -393,7 +402,7 @@ export function LibraryClient({
               )}
               {recipeIncomplete(r) && (
                 <span className="absolute left-2 top-2 z-10 rounded-full bg-ink/80 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur">
-                  Por completar
+                  {t.toComplete}
                 </span>
               )}
               <button
@@ -404,7 +413,7 @@ export function LibraryClient({
                     : "bg-white/85 text-ink hover:bg-white"
                 }`}
               >
-                {week.has(r.id) ? "✓ semana" : "+ semana"}
+                {week.has(r.id) ? t.inWeek : t.addWeek}
               </button>
             </div>
             <div className="p-3">
@@ -412,20 +421,20 @@ export function LibraryClient({
               <div className="mt-1 flex min-h-4 flex-wrap items-center gap-x-2 gap-y-1">
                 <Stars n={r.rating} />
                 {r.fridge_life_days != null && (
-                  <span className="text-[11px] text-muted">{r.fridge_life_days} días</span>
+                  <span className="text-[11px] text-muted">{r.fridge_life_days} {t.days}</span>
                 )}
                 {r.cook_status === "cabecera" && (
-                  <span className="rounded-full bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-strong">★ De cabecera</span>
+                  <span className="rounded-full bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-strong">★ {t.goto}</span>
                 )}
                 {r.cook_status === "cocinada" && (
-                  <span className="text-[11px] text-muted">✓ cocinada</span>
+                  <span className="text-[11px] text-muted">✓ {t.cooked}</span>
                 )}
               </div>
               <div className="mt-2 space-y-1.5">
                 {r.type && (
                   <div>
                     <span className="inline-block rounded-md bg-accent-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-strong">
-                      {r.type}
+                      {typeLabel(lang, r.type)}
                     </span>
                   </div>
                 )}
@@ -442,7 +451,7 @@ export function LibraryClient({
         ))}
       </div>
           {filtered.length === 0 && (
-            <p className="mt-16 text-center text-muted">Nada coincide con esos filtros.</p>
+            <p className="mt-16 text-center text-muted">{t.noMatch}</p>
           )}
         </div>
       </div>
@@ -460,11 +469,15 @@ function FacetSection({
   label,
   preview,
   extra,
+  moreLabel = "más",
+  lessLabel = "ver menos",
   children,
 }: {
   label: string;
   preview?: number;
   extra?: React.ReactNode;
+  moreLabel?: string;
+  lessLabel?: string;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(true);
@@ -489,7 +502,7 @@ function FacetSection({
               onClick={() => setShowAll((s) => !s)}
               className="text-[11px] text-muted underline decoration-dotted underline-offset-2 hover:text-ink"
             >
-              {showAll ? "ver menos" : `+${items.length - preview!} más`}
+              {showAll ? lessLabel : `+${items.length - preview!} ${moreLabel}`}
             </button>
           )}
           {extra}
