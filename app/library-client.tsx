@@ -4,7 +4,7 @@ import { Children, useMemo, useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import type { Recipe, FilterState, CookStatus } from "@/lib/types";
 import { applyFilters, recipeIncomplete, FRIDGE_BUCKETS, RATING_OPTIONS } from "@/lib/filters";
-import { UI, typeLabel, collLabel, COOK_STATUS_LABELS as STATUS_LABELS, type Lang } from "@/lib/i18n";
+import { UI, typeLabel, collLabel, tagLabel, COOK_STATUS_LABELS as STATUS_LABELS, type Lang } from "@/lib/i18n";
 import { LangToggle } from "./lang-toggle";
 import { toggleWeek } from "./semana/actions";
 
@@ -123,7 +123,7 @@ export function LibraryClient({
   const activeChips: { key: string; label: string; clear: () => void }[] = [];
   f.collections.forEach((v) => activeChips.push({ key: `c:${v}`, label: collLabel(lang, v), clear: () => toggle("collections", v) }));
   f.types.forEach((v) => activeChips.push({ key: `t:${v}`, label: typeLabel(lang, v), clear: () => toggle("types", v) }));
-  f.tags.forEach((v) => activeChips.push({ key: `g:${v}`, label: v, clear: () => toggle("tags", v) }));
+  f.tags.forEach((v) => activeChips.push({ key: `g:${v}`, label: tagLabel(lang, v), clear: () => toggle("tags", v) }));
   if (f.minRating != null) activeChips.push({ key: "r", label: `${f.minRating}★ ${t.orMore}`, clear: () => setF((p) => ({ ...p, minRating: null })) });
   f.fridge.forEach((k) => activeChips.push({ key: `f:${k}`, label: fridgeLabel(k), clear: () => toggle("fridge", k) }));
   f.status.forEach((s) => activeChips.push({ key: `s:${s}`, label: statusLabels[s], clear: () => toggle("status", s) }));
@@ -157,7 +157,7 @@ export function LibraryClient({
           <FLabel>{t.tag}</FLabel>
           <FChips>
             {tagsByFreq.map((tg) => (
-              <button key={tg} className="chip" data-on={f.tags.includes(tg) || undefined} onClick={() => toggle("tags", tg)}>{tg}</button>
+              <button key={tg} className="chip" data-on={f.tags.includes(tg) || undefined} onClick={() => toggle("tags", tg)}>{tagLabel(lang, tg)}</button>
             ))}
             <button
               onClick={() => setF({ ...f, mode: f.mode === "all" ? "any" : "all" })}
@@ -245,7 +245,7 @@ export function LibraryClient({
           }
         >
           {tagsByFreq.map((tg) => (
-            <button key={tg} className="chip" data-on={f.tags.includes(tg) || undefined} onClick={() => toggle("tags", tg)}>{tg}</button>
+            <button key={tg} className="chip" data-on={f.tags.includes(tg) || undefined} onClick={() => toggle("tags", tg)}>{tagLabel(lang, tg)}</button>
           ))}
         </FacetSection>
       )}
@@ -440,8 +440,8 @@ export function LibraryClient({
                 )}
                 {r.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {r.tags.slice(0, 3).map((t) => (
-                      <span key={t} className="rounded-full border border-line px-2 py-0.5 text-[10px] text-muted">{t}</span>
+                    {r.tags.slice(0, 3).map((tg) => (
+                      <span key={tg} className="rounded-full border border-line px-2 py-0.5 text-[10px] text-muted">{tagLabel(lang, tg)}</span>
                     ))}
                   </div>
                 )}

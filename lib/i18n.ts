@@ -42,8 +42,22 @@ export const COOK_STATUS_LABELS: Record<Lang, Record<string, string>> = {
   en: { sin_probar: "Untried", cocinada: "Cooked", cabecera: "Go-to" },
 };
 
+/** Display labels for the known Etiqueta (tag) vocabulary. */
+export const TAG_LABELS: Record<Lang, Record<string, string>> = {
+  es: {},
+  en: {
+    Mexicano: "Mexican", Italiano: "Italian", Indio: "Indian", "Tailandés": "Thai",
+    Griego: "Greek", "Japonés": "Japanese", Coreano: "Korean", Chino: "Chinese",
+    Vietnamita: "Vietnamese", "Mediterráneo": "Mediterranean", "Medio Oriente": "Middle Eastern",
+    Americano: "American", "Francés": "French", Africano: "African", Vegetariano: "Vegetarian",
+    Vegano: "Vegan", "Sin gluten": "Gluten-free", "Rápido": "Quick", Saludable: "Healthy",
+    Picante: "Spicy", "Para invitados": "For guests",
+  },
+};
+
 export const typeLabel = (lang: Lang, v: string | null) => (v ? TYPE_LABELS[lang][v] ?? v : "");
 export const collLabel = (lang: Lang, v: string) => COLLECTION_LABELS[lang][v] ?? v;
+export const tagLabel = (lang: Lang, v: string) => TAG_LABELS[lang][v] ?? v;
 
 /** UI chrome strings. */
 export const UI: Record<Lang, Record<string, string>> = {
