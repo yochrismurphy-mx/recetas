@@ -12,10 +12,13 @@ export default async function Semana() {
   if (planId) {
     const { data } = await s
       .from("plan_items")
-      .select("position, recipes(id, title, emoji)")
+      .select("position, recipes(id, title, title_es, emoji)")
       .eq("plan_id", planId)
       .order("position");
-    recipes = (data ?? []).map((x: any) => x.recipes).filter(Boolean);
+    recipes = (data ?? [])
+      .map((x: any) => x.recipes)
+      .filter(Boolean)
+      .map((r: any) => ({ id: r.id, title: r.title_es || r.title, emoji: r.emoji })); // week view is always Spanish
     const { data: t } = await s
       .from("plan_tasks")
       .select("id, text")

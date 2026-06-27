@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   setRating, setCookStatus, addNote, setCollection, setTag, addCollection, addTag,
-  deleteRecipe, updateRecipe,
+  deleteRecipe, updateRecipe, retranslate,
 } from "./actions";
 import { toggleWeek } from "../../semana/actions";
-import { COOK_STATUS_LABELS, type CookStatus } from "@/lib/types";
+import { type CookStatus } from "@/lib/types";
+import { UI, typeLabel, collLabel, tagLabel, COOK_STATUS_LABELS as STATUS_LABELS, type Lang } from "@/lib/i18n";
+import { LangToggle } from "../../lang-toggle";
 
 type Group = { label: string | null; items: string[] };
 type Recipe = {
@@ -45,9 +47,12 @@ function textToGroups(text: string): Group[] {
 }
 
 export function RecipeClient({
-  recipe, inWeek, allCollections, allTags,
-}: { recipe: Recipe; inWeek: boolean; allCollections: Opt[]; allTags: Opt[] }) {
+  recipe, inWeek, allCollections, allTags, lang, staleLang,
+}: { recipe: Recipe; inWeek: boolean; allCollections: Opt[]; allTags: Opt[]; lang: Lang; staleLang: "es" | "en" | null }) {
   const router = useRouter();
+  const t = UI[lang];
+  const statusLabels = STATUS_LABELS[lang];
+  const [retranslating, setRetranslating] = useState(false);
   const [inWk, setInWk] = useState(inWeek);
   const [pending, start] = useTransition();
   const [note, setNote] = useState("");
@@ -91,7 +96,7 @@ export function RecipeClient({
 
   function saveEdit() {
     start(async () => {
-      await updateRecipe(recipe.id, {
+      await updateRecipe(recipe.id, lang, {
         title: eTitle.trim() || recipe.title,
         type: eType,
         porciones: ePorc.trim() || null,
@@ -108,28 +113,31 @@ export function RecipeClient({
   return (
     <main className="mx-auto max-w-2xl px-5 py-8">
       <div className="flex items-center justify-between">
-        <Link href="/" className="-ml-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium text-ink/75 transition-colors hover:bg-surface hover:text-ink">← Biblioteca</Link>
-        {!editing && (
-          <div className="flex items-center gap-2">
-            <button onClick={() => setEditing(true)} className="btn btn-ghost px-3 py-1.5 text-xs">Editar</button>
-            {confirmDel ? (
-              <span className="flex items-center gap-2 text-xs">
-                <span className="text-muted">¿Eliminar?</span>
-                <button
-                  onClick={() => start(async () => { await deleteRecipe(recipe.id); router.push("/"); })}
-                  className="rounded-lg bg-accent px-3 py-1.5 font-medium text-white hover:bg-accent-strong"
-                >
-                  Sí, eliminar
+        <Link href="/" className="-ml-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium text-ink/75 transition-colors hover:bg-surface hover:text-ink">← {t.back}</Link>
+        <div className="flex items-center gap-2">
+          <LangToggle lang={lang} />
+          {!editing && (
+            <>
+              <button onClick={() => setEditing(true)} className="btn btn-ghost px-3 py-1.5 text-xs">{t.edit}</button>
+              {confirmDel ? (
+                <span className="flex items-center gap-2 text-xs">
+                  <span className="text-muted">{t.delConfirm}</span>
+                  <button
+                    onClick={() => start(async () => { await deleteRecipe(recipe.id); router.push("/"); })}
+                    className="rounded-lg bg-accent px-3 py-1.5 font-medium text-white hover:bg-accent-strong"
+                  >
+                    {t.delYes}
+                  </button>
+                  <button onClick={() => setConfirmDel(false)} className="btn btn-ghost px-3 py-1.5 text-xs">{t.cancel}</button>
+                </span>
+              ) : (
+                <button onClick={() => setConfirmDel(true)} className="px-2 py-1.5 text-xs text-muted transition-colors hover:text-accent-strong">
+                  {t.del}
                 </button>
-                <button onClick={() => setConfirmDel(false)} className="btn btn-ghost px-3 py-1.5 text-xs">Cancelar</button>
-              </span>
-            ) : (
-              <button onClick={() => setConfirmDel(true)} className="px-2 py-1.5 text-xs text-muted transition-colors hover:text-accent-strong">
-                Eliminar
-              </button>
-            )}
-          </div>
-        )}
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       <div className="relative mt-4 flex h-56 items-center justify-center overflow-hidden rounded-2xl bg-surface text-7xl">
@@ -139,7 +147,7 @@ export function RecipeClient({
           <span className="opacity-80">{recipe.emoji ?? "🍽️"}</span>
         )}
         <label className="absolute bottom-2 right-2 cursor-pointer rounded-full bg-white/85 px-3 py-1 text-xs font-medium text-ink backdrop-blur transition-colors hover:bg-white">
-          {uploading ? "Subiendo…" : recipe.image_url ? "Cambiar foto" : "Subir foto"}
+          {uploading ? t.uploading : recipe.image_url ? t.changePhoto : t.uploadPhoto}
           <input type="file" accept="image/*" className="hidden" onChange={onPickFile} disabled={uploading} />
         </label>
       </div>
@@ -149,22 +157,22 @@ export function RecipeClient({
           <input value={eTitle} onChange={(e) => setETitle(e.target.value)} className="input font-display text-xl font-medium" />
           <div className="flex flex-wrap gap-3">
             <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-muted">
-              Tipo
+              {t.type}
               <select value={eType} onChange={(e) => setEType(e.target.value)} className="input w-44">
-                {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                {TYPES.map((ty) => <option key={ty} value={ty}>{typeLabel(lang, ty)}</option>)}
               </select>
             </label>
             <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-muted">
-              Porciones
+              {t.servingsLabel}
               <input value={ePorc} onChange={(e) => setEPorc(e.target.value)} placeholder="ej. 4" className="input w-28" />
             </label>
             <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-muted">
-              Días en refri
+              {t.fridgeLabel}
               <input value={eFridge} onChange={(e) => setEFridge(e.target.value)} placeholder="ej. 5" inputMode="numeric" className="input w-28" />
             </label>
           </div>
           <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-muted">
-            Liga / fuente
+            {t.sourceLabel}
             <input
               value={eSource}
               onChange={(e) => setESource(e.target.value)}
@@ -174,18 +182,18 @@ export function RecipeClient({
             />
           </label>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Ingredientes</label>
-            <p className="mb-1 text-xs text-muted">Un ingrediente por línea. Empieza una línea con “# ” para un subgrupo.</p>
+            <label className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">{t.ingredients}</label>
+            <p className="mb-1 text-xs text-muted">{t.ingHelp}</p>
             <textarea value={eIng} onChange={(e) => setEIng(e.target.value)} className="input min-h-40 font-mono text-sm" />
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Preparación</label>
-            <p className="mb-1 text-xs text-muted">Un paso por línea.</p>
+            <label className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">{t.prep}</label>
+            <p className="mb-1 text-xs text-muted">{t.stepHelp}</p>
             <textarea value={eSteps} onChange={(e) => setESteps(e.target.value)} className="input min-h-40 font-mono text-sm" />
           </div>
           <div className="flex gap-2">
-            <button onClick={saveEdit} disabled={pending} className="btn btn-primary">Guardar cambios</button>
-            <button onClick={() => setEditing(false)} className="btn btn-ghost">Cancelar</button>
+            <button onClick={saveEdit} disabled={pending} className="btn btn-primary">{t.saveChanges}</button>
+            <button onClick={() => setEditing(false)} className="btn btn-ghost">{t.cancel}</button>
           </div>
         </div>
       ) : (
@@ -194,8 +202,20 @@ export function RecipeClient({
           {recipe.type && (
             <div className="mt-2">
               <span className="inline-block rounded-md bg-accent-soft px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-accent-strong">
-                {recipe.type}
+                {typeLabel(lang, recipe.type)}
               </span>
+            </div>
+          )}
+          {staleLang === lang && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
+              <span>⚠ {t.staleBadge}</span>
+              <button
+                onClick={() => { setRetranslating(true); start(async () => { await retranslate(recipe.id, lang); setRetranslating(false); router.refresh(); }); }}
+                disabled={retranslating}
+                className="font-medium underline decoration-dotted underline-offset-2 hover:text-amber-900 disabled:opacity-60"
+              >
+                {retranslating ? t.updating : t.retranslate}
+              </button>
             </div>
           )}
 
@@ -222,7 +242,7 @@ export function RecipeClient({
               disabled={pending}
               className={inWk ? "btn btn-primary" : "btn btn-ghost"}
             >
-              {inWk ? "✓ en la semana" : "+ a la semana"}
+              {inWk ? t.inWeekBtn : t.addWeekBtn}
             </button>
           </div>
 
@@ -235,24 +255,24 @@ export function RecipeClient({
                   status === st ? "bg-accent text-white" : "text-muted hover:bg-surface hover:text-ink"
                 }`}
               >
-                {COOK_STATUS_LABELS[st]}
+                {statusLabels[st]}
               </button>
             ))}
           </div>
 
           <p className="mt-3 text-sm text-muted">
-            {recipe.porciones ? `${/porci/i.test(recipe.porciones) ? recipe.porciones : `${recipe.porciones} porciones`} · ` : ""}
-            {recipe.fridge_life_days != null ? `aguanta ${recipe.fridge_life_days} días` : ""}
+            {recipe.porciones ? `${/porci|serv/i.test(recipe.porciones) ? recipe.porciones : `${recipe.porciones} ${t.servingsWord}`} · ` : ""}
+            {recipe.fridge_life_days != null ? `${t.keeps} ${recipe.fridge_life_days} ${t.days}` : ""}
             {recipe.source_url ? (
               <>
                 {recipe.porciones || recipe.fridge_life_days != null ? " · " : ""}
-                <a href={recipe.source_url} target="_blank" rel="noreferrer" className="text-accent hover:underline">Fuente</a>
+                <a href={recipe.source_url} target="_blank" rel="noreferrer" className="text-accent hover:underline">{t.source}</a>
               </>
             ) : null}
           </p>
 
           {recipe.ingredients.length > 0 && (
-            <Section title="Ingredientes">
+            <Section title={t.ingredients}>
               {recipe.ingredients.map((g, i) => (
                 <div key={i} className="mb-2">
                   {g.label && <div className="text-sm font-semibold">{g.label}</div>}
@@ -265,7 +285,7 @@ export function RecipeClient({
           )}
 
           {recipe.steps.length > 0 && (
-            <Section title="Preparación">
+            <Section title={t.prep}>
               {recipe.steps.map((g, i) => (
                 <div key={i} className="mb-2">
                   {g.label && <div className="text-sm font-semibold">{g.label}</div>}
@@ -279,7 +299,7 @@ export function RecipeClient({
         </>
       )}
 
-      <Section title="Colecciones">
+      <Section title={t.collections}>
         <div className="flex flex-wrap gap-1.5">
           {allCollections.map((c) => (
             <button key={c.id} className="chip" data-on={collOn.has(c.id) || undefined}
@@ -287,32 +307,30 @@ export function RecipeClient({
                 const on = !collOn.has(c.id);
                 setCollOn((prev) => { const n = new Set(prev); on ? n.add(c.id) : n.delete(c.id); return n; });
                 start(() => setCollection(recipe.id, c.id, on));
-              }}>{c.name}</button>
+              }}>{collLabel(lang, c.name)}</button>
           ))}
-          <AddInline value={newColl} setValue={setNewColl} disabled={pending}
+          <AddInline value={newColl} setValue={setNewColl} disabled={pending} placeholder={t.newItem}
             onAdd={() => { run(() => addCollection(recipe.id, newColl)); setNewColl(""); }} />
         </div>
       </Section>
 
-      <Section title="Etiquetas">
-        <p className="mb-2 text-xs text-muted">
-          Etiquetas libres (cocina, dieta, etc.). El tipo de platillo se edita arriba con “Editar”.
-        </p>
+      <Section title={t.tags}>
+        <p className="mb-2 text-xs text-muted">{t.tagsHelp}</p>
         <div className="flex flex-wrap gap-1.5">
-          {allTags.map((t) => (
-            <button key={t.id} className="chip" data-on={tagOn.has(t.id) || undefined}
+          {allTags.map((tg) => (
+            <button key={tg.id} className="chip" data-on={tagOn.has(tg.id) || undefined}
               onClick={() => {
-                const on = !tagOn.has(t.id);
-                setTagOn((prev) => { const n = new Set(prev); on ? n.add(t.id) : n.delete(t.id); return n; });
-                start(() => setTag(recipe.id, t.id, on));
-              }}>{t.name}</button>
+                const on = !tagOn.has(tg.id);
+                setTagOn((prev) => { const n = new Set(prev); on ? n.add(tg.id) : n.delete(tg.id); return n; });
+                start(() => setTag(recipe.id, tg.id, on));
+              }}>{tagLabel(lang, tg.name)}</button>
           ))}
-          <AddInline value={newTag} setValue={setNewTag} disabled={pending}
+          <AddInline value={newTag} setValue={setNewTag} disabled={pending} placeholder={t.newItem}
             onAdd={() => { run(() => addTag(recipe.id, newTag)); setNewTag(""); }} />
         </div>
       </Section>
 
-      <Section title="Notas">
+      <Section title={t.notes}>
         {recipe.notes.length > 0 ? (
           <div className="mb-3 space-y-1.5">
             {recipe.notes.map((n) => (
@@ -320,12 +338,12 @@ export function RecipeClient({
             ))}
           </div>
         ) : (
-          <p className="mb-3 text-sm text-muted">Sin notas aún.</p>
+          <p className="mb-3 text-sm text-muted">{t.noNotes}</p>
         )}
         <div className="flex gap-2">
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Agregar una nota…" className="input flex-1" />
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t.addNotePlaceholder} className="input flex-1" />
           <button disabled={pending || !note.trim()} onClick={() => { run(() => addNote(recipe.id, note)); setNote(""); }} className="btn btn-ghost">
-            Guardar
+            {t.save}
           </button>
         </div>
       </Section>
@@ -343,15 +361,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function AddInline({
-  value, setValue, onAdd, disabled,
-}: { value: string; setValue: (v: string) => void; onAdd: () => void; disabled: boolean }) {
+  value, setValue, onAdd, disabled, placeholder = "+ nueva",
+}: { value: string; setValue: (v: string) => void; onAdd: () => void; disabled: boolean; placeholder?: string }) {
   return (
     <input
       value={value}
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={(e) => { if (e.key === "Enter") onAdd(); }}
       disabled={disabled}
-      placeholder="+ nueva"
+      placeholder={placeholder}
       className="w-24 rounded-full border border-dashed border-line bg-transparent px-3 py-1 text-xs text-ink outline-none transition-colors focus:border-accent"
     />
   );

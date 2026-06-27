@@ -65,6 +65,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       inWeek={inWeek}
       allCollections={(allCollections ?? []) as { id: string; name: string }[]}
       allTags={(allTags ?? []) as { id: string; name: string }[]}
+      lang={lang}
+      staleLang={(r.stale_lang ?? null) as "es" | "en" | null}
     />
   );
 }

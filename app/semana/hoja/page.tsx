@@ -14,7 +14,7 @@ export default async function Hoja() {
   if (planId) {
     const { data } = await s
       .from("plan_items")
-      .select("position, recipes(title, emoji, porciones, fridge_life_days, ingredients, steps)")
+      .select("position, recipes(title, title_es, emoji, porciones, fridge_life_days, ingredients, ingredients_es, steps, steps_es)")
       .eq("plan_id", planId)
       .order("position");
     rows = (data ?? []).map((x: any) => x.recipes).filter(Boolean);
@@ -39,11 +39,14 @@ export default async function Hoja() {
       {rows.length === 0 && <p className="mt-6 text-neutral-400">No hay recetas en la semana.</p>}
 
       {rows.map((r, i) => {
-        const ing = (r.ingredients ?? []) as Group[];
-        const steps = (r.steps ?? []) as Group[];
+        // The cook sheet is always Spanish: prefer the _es columns, fall back to legacy.
+        const hasEs = (g: any) => Array.isArray(g) && g.length > 0;
+        const ing = (hasEs(r.ingredients_es) ? r.ingredients_es : r.ingredients ?? []) as Group[];
+        const steps = (hasEs(r.steps_es) ? r.steps_es : r.steps ?? []) as Group[];
+        const esTitle = r.title_es || r.title;
         return (
           <div key={i} className="mt-4" style={{ breakInside: "avoid" }}>
-            <div className="text-base font-medium">{r.emoji} {r.title}</div>
+            <div className="text-base font-medium">{r.emoji} {esTitle}</div>
             <div className="text-xs text-neutral-500">
               {r.porciones ? `${r.porciones} · ` : ""}
               {r.fridge_life_days != null ? `aguanta ${r.fridge_life_days} días` : ""}

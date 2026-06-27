@@ -132,6 +132,58 @@ export async function parseRecipe(
   return parsed as ParsedRecipe;
 }
 
+// --- Recipe translation (server-side; mirrors supabase/translate-recipes.ts) ---
+type TGroup = { label: string | null; items: string[] };
+const T_SEP = /\n*~~~\n*/;
+
+export async function translateRecipeContent(
+  src: { title: string; ingredients: TGroup[]; steps: TGroup[] },
+  toLang: "es" | "en",
+): Promise<{ title: string; ingredients: TGroup[]; steps: TGroup[] }> {
+  const strings: string[] = [];
+  const add = (s: string) => (strings.push(s), strings.length - 1);
+  const titleIdx = add(src.title);
+  const enc = (groups: TGroup[]) =>
+    (groups ?? []).map((g) => ({
+      labelIdx: g.label != null && g.label.trim() ? add(g.label) : -1,
+      itemIdxs: (g.items ?? []).map((it) => add(it)),
+    }));
+  const ingShape = enc(src.ingredients);
+  const stepShape = enc(src.steps);
+
+  const mx = toLang === "es"
+    ? " Use natural MEXICAN Spanish and the ingredient names a Mexican home cook uses (betabel, elote, jitomate, chícharo, ejotes, camote, cacahuate, crema, queso fresco)."
+    : "";
+  const system = `You translate recipe text into ${toLang === "es" ? "Spanish" : "English"}. You receive a JSON array of N strings (title, then ingredient and step lines). Translate each faithfully; do not add, drop, merge, or reorder. If a string is already in the target language, return it verbatim. Preserve numbers/quantities/units.${mx}
+Return via the return_translations tool a single "result" string with the N translations in order, each separated by a line containing only ~~~ (three tildes). Exactly N, each on one line, no numbering, no commentary.`;
+
+  let tr: string[] | null = null;
+  for (let attempt = 0; attempt < 3 && !tr; attempt++) {
+    const msg = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 8000,
+      system,
+      tools: [{
+        name: "return_translations",
+        description: "Return the translations as one string separated by ~~~ lines.",
+        input_schema: { type: "object", properties: { result: { type: "string" } }, required: ["result"] },
+      }],
+      tool_choice: { type: "tool", name: "return_translations" },
+      messages: [{ role: "user", content: JSON.stringify(strings) }],
+    });
+    const tu = msg.content.find((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
+    const result = tu && (tu.input as { result?: unknown }).result;
+    if (typeof result === "string") {
+      const parts = result.split(T_SEP).map((x) => x.trim()).filter((x) => x.length > 0);
+      if (parts.length === strings.length) tr = parts;
+    }
+  }
+  if (!tr) throw new Error("translation length mismatch");
+  const rebuild = (shape: { labelIdx: number; itemIdxs: number[] }[]): TGroup[] =>
+    shape.map((g) => ({ label: g.labelIdx >= 0 ? tr![g.labelIdx] : null, items: g.itemIdxs.map((i) => tr![i]) }));
+  return { title: tr[titleIdx], ingredients: rebuild(ingShape), steps: rebuild(stepShape) };
+}
+
 export type ShoppingGroup = { aisle: string; items: { name: string; qty: string | null }[] };
 
 export async function consolidateShopping(opts: {

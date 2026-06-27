@@ -1,6 +1,7 @@
 "use server";
 
 import { getServerClient } from "@/lib/supabase";
+import { translateRecipeContent } from "@/lib/anthropic";
 import { revalidatePath } from "next/cache";
 
 async function touch(id: string) {
@@ -66,6 +67,7 @@ export async function deleteRecipe(id: string) {
 
 export async function updateRecipe(
   id: string,
+  lang: "es" | "en",
   fields: {
     title: string;
     type: string;
@@ -77,7 +79,54 @@ export async function updateRecipe(
   },
 ) {
   const s = getServerClient();
-  await s.from("recipes").update(fields).eq("id", id);
+  const other = lang === "es" ? "en" : "es";
+  const patch: Record<string, unknown> = {
+    type: fields.type,
+    porciones: fields.porciones,
+    fridge_life_days: fields.fridge_life_days,
+    source_url: fields.source_url,
+    [`title_${lang}`]: fields.title,
+    [`ingredients_${lang}`]: fields.ingredients,
+    [`steps_${lang}`]: fields.steps,
+    stale_lang: other, // the other language is now out of date
+  };
+  // Keep the legacy columns mirroring Spanish (the cook sheet reads Spanish).
+  if (lang === "es") {
+    patch.title = fields.title;
+    patch.ingredients = fields.ingredients;
+    patch.steps = fields.steps;
+  }
+  await s.from("recipes").update(patch).eq("id", id);
+  await touch(id);
+}
+
+/** Regenerate the stale-language side of a recipe from the fresh side, then clear the flag. */
+export async function retranslate(id: string, staleLang: "es" | "en") {
+  const s = getServerClient();
+  const src = staleLang === "es" ? "en" : "es";
+  const { data: r } = await s
+    .from("recipes")
+    .select(`title_${src}, ingredients_${src}, steps_${src}`)
+    .eq("id", id)
+    .single();
+  if (!r) return;
+  const row = r as any;
+  const out = await translateRecipeContent(
+    { title: row[`title_${src}`] ?? "", ingredients: row[`ingredients_${src}`] ?? [], steps: row[`steps_${src}`] ?? [] },
+    staleLang,
+  );
+  const patch: Record<string, unknown> = {
+    [`title_${staleLang}`]: out.title,
+    [`ingredients_${staleLang}`]: out.ingredients,
+    [`steps_${staleLang}`]: out.steps,
+    stale_lang: null,
+  };
+  if (staleLang === "es") {
+    patch.title = out.title;
+    patch.ingredients = out.ingredients;
+    patch.steps = out.steps;
+  }
+  await s.from("recipes").update(patch).eq("id", id);
   await touch(id);
 }
 

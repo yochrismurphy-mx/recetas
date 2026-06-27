@@ -46,6 +46,7 @@ export async function saveRecipe(p: ParsedRecipe): Promise<string> {
   const steps = (p.groups || [])
     .filter((g) => g.kind === "step")
     .map((g) => ({ label: g.label ?? null, items: g.items }));
+  const lang = (p.language === "en" ? "en" : "es") as "es" | "en";
 
   const { data, error } = await s
     .from("recipes")
@@ -53,11 +54,16 @@ export async function saveRecipe(p: ParsedRecipe): Promise<string> {
       title: p.title,
       emoji,
       type: p.type,
-      language: p.language || "es",
+      language: lang,
       porciones: p.porciones ?? null,
       source_url: p.source_urls?.[0] ?? null,
       ingredients,
       steps,
+      // Seed the matching-language columns; the other side stays empty until the
+      // translation tool fills it (the app falls back so it still displays).
+      [`title_${lang}`]: p.title,
+      [`ingredients_${lang}`]: ingredients,
+      [`steps_${lang}`]: steps,
     })
     .select("id")
     .single();
