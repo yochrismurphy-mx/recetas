@@ -18,6 +18,7 @@ create table if not exists recipes (
   last_cooked date,
   source_url text,
   image_url text,
+  video_url text,                            -- YouTube (embedded inline) or Instagram (linked out)
   ingredients jsonb not null default '[]',  -- [{label: string|null, items: string[]}]
   steps jsonb not null default '[]',         -- [{label: string|null, items: string[]}]
   created_at timestamptz not null default now(),

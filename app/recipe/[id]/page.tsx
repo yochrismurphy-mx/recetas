@@ -38,6 +38,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     times_cooked: r.times_cooked as number,
     cook_status: (r.cook_status ?? "sin_probar") as "sin_probar" | "cocinada" | "cabecera",
     source_url: r.source_url as string | null,
+    video_url: r.video_url as string | null,
     ingredients: c.ingredients,
     steps: c.steps,
     collectionIds: (r.recipe_collections ?? []).map((x: any) => x.collection_id as string),

@@ -9,6 +9,7 @@ import { saveRecipe } from "./actions";
 export default function Agregar() {
   const router = useRouter();
   const [input, setInput] = useState("");
+  const [video, setVideo] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<ParsedRecipe | null>(null);
@@ -39,7 +40,7 @@ export default function Agregar() {
   function save() {
     if (!preview) return;
     start(async () => {
-      const id = await saveRecipe({ ...preview, title });
+      const id = await saveRecipe({ ...preview, title }, video);
       router.push(`/recipe/${id}`);
     });
   }
@@ -60,6 +61,13 @@ export default function Agregar() {
         onChange={(e) => setInput(e.target.value)}
         placeholder="https://cooking.nytimes.com/…  o pega el texto completo"
         className="input mt-4 min-h-28"
+      />
+      <input
+        value={video}
+        onChange={(e) => setVideo(e.target.value)}
+        placeholder="Video (YouTube o Instagram) — opcional"
+        inputMode="url"
+        className="input mt-2"
       />
       <button onClick={process} disabled={busy || !input.trim()} className="btn btn-primary mt-2">
         {busy ? "Procesando…" : "Procesar"}

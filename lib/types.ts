@@ -23,6 +23,7 @@ export type Recipe = {
   last_cooked: string | null;
   source_url: string | null;
   image_url: string | null;
+  video_url: string | null;
   ingredients: Group[];
   steps: Group[];
   collections: string[];

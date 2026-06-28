@@ -37,7 +37,7 @@ async function storeImage(
   }
 }
 
-export async function saveRecipe(p: ParsedRecipe): Promise<string> {
+export async function saveRecipe(p: ParsedRecipe, videoUrl?: string | null): Promise<string> {
   const s = getServerClient();
   const emoji = TYPE_EMOJI[p.type] || p.emoji || null;
   const ingredients = (p.groups || [])
@@ -57,6 +57,7 @@ export async function saveRecipe(p: ParsedRecipe): Promise<string> {
       language: lang,
       porciones: p.porciones ?? null,
       source_url: p.source_urls?.[0] ?? null,
+      video_url: videoUrl?.trim() || null,
       ingredients,
       steps,
       // Seed the matching-language columns; the other side stays empty until the

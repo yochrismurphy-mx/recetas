@@ -10,6 +10,7 @@ import {
 import { toggleWeek } from "../../semana/actions";
 import { type CookStatus } from "@/lib/types";
 import { UI, typeLabel, collLabel, tagLabel, COOK_STATUS_LABELS as STATUS_LABELS, type Lang } from "@/lib/i18n";
+import { videoInfo } from "@/lib/video";
 import { LangToggle } from "../../lang-toggle";
 
 type Group = { label: string | null; items: string[] };
@@ -17,6 +18,7 @@ type Recipe = {
   id: string; title: string; emoji: string | null; image_url: string | null; type: string | null;
   porciones: string | null; fridge_life_days: number | null; rating: number | null;
   tried: boolean; times_cooked: number; cook_status: CookStatus; source_url: string | null;
+  video_url: string | null;
   ingredients: Group[]; steps: Group[];
   collectionIds: string[]; tagIds: string[];
   notes: { id: string; body: string }[];
@@ -75,8 +77,11 @@ export function RecipeClient({
   const [ePorc, setEPorc] = useState(recipe.porciones ?? "");
   const [eFridge, setEFridge] = useState(recipe.fridge_life_days?.toString() ?? "");
   const [eSource, setESource] = useState(recipe.source_url ?? "");
+  const [eVideo, setEVideo] = useState(recipe.video_url ?? "");
   const [eIng, setEIng] = useState(groupsToText(recipe.ingredients));
   const [eSteps, setESteps] = useState(groupsToText(recipe.steps));
+
+  const video = videoInfo(recipe.video_url);
 
   const run = (fn: () => Promise<unknown>) =>
     start(async () => { await fn(); router.refresh(); });
@@ -102,6 +107,7 @@ export function RecipeClient({
         porciones: ePorc.trim() || null,
         fridge_life_days: eFridge.trim() ? Number(eFridge) : null,
         source_url: eSource.trim() || null,
+        video_url: eVideo.trim() || null,
         ingredients: textToGroups(eIng),
         steps: textToGroups(eSteps),
       });
@@ -177,6 +183,16 @@ export function RecipeClient({
               value={eSource}
               onChange={(e) => setESource(e.target.value)}
               placeholder="https://…"
+              inputMode="url"
+              className="input"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            {t.videoLabel}
+            <input
+              value={eVideo}
+              onChange={(e) => setEVideo(e.target.value)}
+              placeholder="https://youtube.com/…  ·  https://instagram.com/reel/…"
               inputMode="url"
               className="input"
             />
@@ -270,6 +286,28 @@ export function RecipeClient({
               </>
             ) : null}
           </p>
+
+          {video?.platform === "youtube" && video.embedUrl && (
+            <div className="mt-5 aspect-video w-full overflow-hidden rounded-2xl bg-black">
+              <iframe
+                src={video.embedUrl}
+                title="Video"
+                className="h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+          )}
+          {video?.platform === "instagram" && (
+            <a
+              href={video.watchUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-ghost mt-5 inline-flex items-center gap-2"
+            >
+              ▶ {t.watchOnInstagram}
+            </a>
+          )}
 
           {recipe.ingredients.length > 0 && (
             <Section title={t.ingredients}>

@@ -74,6 +74,7 @@ export async function updateRecipe(
     porciones: string | null;
     fridge_life_days: number | null;
     source_url: string | null;
+    video_url: string | null;
     ingredients: { label: string | null; items: string[] }[];
     steps: { label: string | null; items: string[] }[];
   },
@@ -85,6 +86,7 @@ export async function updateRecipe(
     porciones: fields.porciones,
     fridge_life_days: fields.fridge_life_days,
     source_url: fields.source_url,
+    video_url: fields.video_url,
     [`title_${lang}`]: fields.title,
     [`ingredients_${lang}`]: fields.ingredients,
     [`steps_${lang}`]: fields.steps,

@@ -84,6 +84,8 @@ export const UI: Record<Lang, Record<string, string>> = {
     notes: "Notas", noNotes: "Sin notas aún.", addNotePlaceholder: "Agregar una nota…",
     save: "Guardar", newItem: "+ nueva", staleBadge: "Traducción desactualizada",
     retranslate: "Actualizar traducción", updating: "Actualizando…",
+    videoLabel: "Video (YouTube o Instagram)", watchOnInstagram: "Ver video en Instagram",
+    videoOptional: "Video (YouTube o Instagram) — opcional",
   },
   en: {
     title: "Norma & Chris's Kitchen", thisWeek: "This week", shopping: "Shopping",
@@ -108,5 +110,7 @@ export const UI: Record<Lang, Record<string, string>> = {
     notes: "Notes", noNotes: "No notes yet.", addNotePlaceholder: "Add a note…",
     save: "Save", newItem: "+ new", staleBadge: "Translation out of date",
     retranslate: "Update translation", updating: "Updating…",
+    videoLabel: "Video (YouTube or Instagram)", watchOnInstagram: "Watch on Instagram",
+    videoOptional: "Video (YouTube or Instagram) — optional",
   },
 };

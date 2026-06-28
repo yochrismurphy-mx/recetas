@@ -33,6 +33,7 @@ export default async function Home() {
       last_cooked: row.last_cooked,
       source_url: row.source_url,
       image_url: row.image_url,
+      video_url: row.video_url,
       ingredients: c.ingredients,
       steps: c.steps,
       collections: (row.recipe_collections ?? [])

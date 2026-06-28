@@ -405,6 +405,11 @@ export function LibraryClient({
                   {t.toComplete}
                 </span>
               )}
+              {r.video_url && (
+                <span className="absolute bottom-2 left-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-ink/70 text-[10px] text-white backdrop-blur" aria-label="Video">
+                  ▶
+                </span>
+              )}
               <button
                 onClick={(e) => toggleWeekLocal(r.id, e)}
                 className={`absolute right-2 top-2 z-10 rounded-full px-2 py-0.5 text-[11px] font-medium backdrop-blur transition-colors ${
