@@ -43,14 +43,14 @@ export function ComprasClient({
   }
 
   function flip(id: string) {
+    const on = checked.has(id);
     setChecked((prev) => {
       const n = new Set(prev);
-      const on = n.has(id);
       if (on) n.delete(id);
       else n.add(id);
-      start(() => toggleItem(id, !on));
       return n;
     });
+    start(() => toggleItem(id, !on));
   }
 
   const byAisle = new Map<string, Item[]>();
