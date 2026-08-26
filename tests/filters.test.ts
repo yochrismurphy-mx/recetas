@@ -6,11 +6,15 @@ function r(p: Partial<Recipe>): Recipe {
   return {
     id: "x", title: "X", emoji: null, type: null, language: "es",
     porciones: null, fridge_life_days: null, rating: null, tried: false,
-    times_cooked: 0, last_cooked: null, source_url: null, image_url: null,
+    times_cooked: 0, cook_status: "sin_probar", last_cooked: null,
+    source_url: null, image_url: null, video_url: null,
     ingredients: [], steps: [], collections: [], tags: [], ...p,
   };
 }
-const base = { q: "", types: [], collections: [], tags: [], mode: "all" as const };
+const base = {
+  q: "", types: [], collections: [], tags: [], mode: "all" as const,
+  incompleteOnly: false, minRating: null, fridge: [], status: [],
+};
 
 const data: Recipe[] = [
   r({ id: "1", title: "Curry rojo", type: "Sopa/Curry", tags: ["Vegetariano", "Indio"] }),
