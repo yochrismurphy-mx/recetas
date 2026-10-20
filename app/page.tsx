@@ -10,10 +10,20 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const supabase = getServerClient();
   const lang = await getLang();
-  const { data, error } = await supabase
-    .from("recipes")
-    .select("*, recipe_collections(collections(name)), recipe_tags(tags(name))")
-    .order("title");
+  // The library only needs what the cards and search use: no steps, and ingredients in the
+  // displayed language only. Everything below runs in parallel.
+  const cols = [
+    "id, title, title_es, title_en, emoji, type, language, porciones, fridge_life_days, rating, tried",
+    "times_cooked, cook_status, last_cooked, source_url, image_url, video_url",
+    `ingredients_${lang}`,
+    "recipe_collections(collections(name)), recipe_tags(tags(name))",
+  ].join(", ");
+  const [{ data, error }, planId, { data: collRows }, { data: tagRows }] = await Promise.all([
+    supabase.from("recipes").select(cols).order("title"),
+    currentPlanId(supabase),
+    supabase.from("collections").select("name").order("name"),
+    supabase.from("tags").select("name").order("name"),
+  ]);
   if (error) throw new Error(error.message);
 
   const recipes: Recipe[] = (data ?? []).map((row: any) => {
@@ -43,7 +53,6 @@ export default async function Home() {
     };
   });
 
-  const planId = await currentPlanId(supabase);
   let weekIds: string[] = [];
   if (planId) {
     const { data: items } = await supabase
@@ -52,9 +61,6 @@ export default async function Home() {
       .eq("plan_id", planId);
     weekIds = (items ?? []).map((x: any) => x.recipe_id as string);
   }
-
-  const { data: collRows } = await supabase.from("collections").select("name").order("name");
-  const { data: tagRows } = await supabase.from("tags").select("name").order("name");
 
   return (
     <LibraryClient

@@ -2,6 +2,55 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// One model for every call. Structured output (output_config.format) guarantees valid JSON,
+// and server-side fallbacks retry on another model if a request is declined.
+const MODEL = "claude-opus-5-5";
+
+async function callJSON<T>(opts: {
+  system: string;
+  user: string;
+  schema: Record<string, unknown>;
+  maxTokens?: number;
+  effort?: "low" | "medium" | "high";
+}): Promise<T> {
+  const msg = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: opts.maxTokens ?? 16000,
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    output_config: { effort: opts.effort ?? "low", format: { type: "json_schema", schema: opts.schema } },
+    system: opts.system,
+    messages: [{ role: "user", content: opts.user }],
+  } as never) as unknown as Anthropic.Beta.BetaMessage;
+  if (msg.stop_reason === "refusal") throw new Error("El modelo no pudo procesar este texto.");
+  if (msg.stop_reason === "max_tokens") throw new Error("La respuesta quedó incompleta; intenta con un texto más corto.");
+  const text = msg.content
+    .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+  return JSON.parse(text) as T;
+}
+
+const TYPES = ["Aves", "Carne", "Pescado", "Leguminosas", "Ensalada", "Sopa/Curry", "Granos/Pasta", "Verduras", "Postre", "Desayuno", "Pan/Masa", "Salsas/Dips", "Untables"];
+const STR = { type: "string" };
+const STR_ARR = { type: "array", items: STR };
+const RECIPE_SCHEMA = {
+  type: "object", additionalProperties: false,
+  required: ["is_recipe", "emoji", "title", "type", "porciones", "source_urls", "groups", "notes", "tags", "language"],
+  properties: {
+    is_recipe: { type: "boolean" },
+    emoji: STR, title: STR,
+    type: { type: "string", enum: TYPES },
+    porciones: { anyOf: [STR, { type: "null" }] },
+    source_urls: STR_ARR,
+    groups: { type: "array", items: { type: "object", additionalProperties: false, required: ["label", "kind", "items"],
+      properties: { label: { anyOf: [STR, { type: "null" }] }, kind: { type: "string", enum: ["ing", "step"] }, items: STR_ARR } } },
+    notes: STR_ARR,
+    tags: STR_ARR,
+    language: { type: "string", enum: ["es", "en"] },
+  },
+};
+
 // Etiqueta vocabulary the model may suggest on add (keep in sync with supabase/auto-tag.ts).
 export const TAG_VOCAB = [
   "Mexicano", "Italiano", "Indio", "Tailandés", "Griego", "Japonés", "Coreano",
@@ -24,38 +73,22 @@ export type ParsedRecipe = {
   image_candidate: string | null;
 };
 
-const SYSTEM = `You parse a recipe (given as a URL's page text or pasted text) into clean structured JSON for a recipe app, and translate it to Spanish if it is in English. Output ONLY a valid JSON object, no markdown, no commentary.
+const FIELDS = `Fields:
+- is_recipe: false if the input is not a recipe (then fill the other fields with empty values).
+- emoji: one emoji by dish type: 🍗 aves · 🥩 carne · 🐟 pescado/mariscos · 🫘 leguminosas · 🥗 ensalada · 🍲 sopa/caldo/curry/guiso · 🍚 arroz/granos/pasta · 🥦 verduras/guarnición · 🍮 postre/dulce · 🥣 desayuno · 🫓 pan/masa · 🫙 salsa/dip · 🥜 untable.
+- type: the dish type.
+- porciones: servings as stated (e.g. "4 porciones" or "6 servings"), or null.
+- source_urls: the source URL if one was provided, else [].
+- groups: ingredient groups first (kind "ing"), then step groups (kind "step"); label is a short sub-group name or null; one line per item, list markers stripped.
+- notes: only tips or macros that the source itself states; [] if none. Never write your own tips.
+- tags: only from this list, conservative (cuisine only if clearly that cuisine; "Vegetariano" if no meat, poultry or fish; "Vegano" if no animal products at all, plus Vegetariano; "Rápido" if quick and simple; "Picante" if notably spicy): ${TAG_VOCAB.join(", ")}.
+Do not invent ingredients, amounts or steps.`;
 
-Schema:
-{
-  "emoji": one emoji from this legend by dish type: 🍗 aves · 🥩 carne · 🐟 pescado/mariscos · 🫘 leguminosas · 🥗 ensalada · 🍲 sopa/caldo/curry/guiso · 🍚 arroz/granos/pasta · 🥦 verduras/guarnición · 🍮 postre/dulce · 🥣 desayuno · 🫓 pan/masa · 🫙 salsa/dip · 🥜 untable,
-  "title": dish name in Spanish (translate if needed; trim),
-  "type": one of: Aves, Carne, Pescado, Leguminosas, Ensalada, Sopa/Curry, Granos/Pasta, Verduras, Postre, Desayuno, Pan/Masa, Salsas/Dips, Untables,
-  "porciones": e.g. "4 porciones" if stated, else null,
-  "source_urls": array with the source URL if one was provided, else [],
-  "groups": array of { "label": short sub-group label or null, "kind": "ing" or "step", "items": [strings] } — ingredients first, then steps, all in Spanish, markers stripped,
-  "notes": array of short tips in Spanish, or [],
-  "tags": array of applicable labels chosen ONLY from this list — conservative, do not over-tag (cuisine only if clearly that cuisine; "Vegetariano" if no meat/poultry/fish; "Vegano" if no animal products at all, also add Vegetariano; "Rápido" if quick/simple; "Picante" if notably spicy): ${TAG_VOCAB.join(", ")},
-  "language": "es"
-}
+const SYSTEM = `You parse a recipe (a web page's text or pasted text) into structured data for a household recipe app, translating it to natural Mexican Spanish if it is in another language (Mexican ingredient names: jitomate, betabel, elote, chícharo, ejotes, camote, cacahuate, calabacita, cebollín). Title, groups and notes all in Spanish; language "es".
+${FIELDS}`;
 
-Translate everything to Spanish. Do not invent ingredients or steps. If the input is not a recipe, return {"error":"not a recipe"}.`;
-
-const SYSTEM_KEEP = `You parse a recipe (URL page text or pasted text) into clean structured JSON for a recipe app. Keep the recipe in its ORIGINAL language; do NOT translate. Output ONLY a valid JSON object, no markdown.
-
-Schema:
-{
-  "emoji": one emoji by dish type: 🍗 aves · 🥩 carne · 🐟 pescado · 🫘 leguminosas · 🥗 ensalada · 🍲 sopa/curry · 🍚 granos/pasta · 🥦 verduras · 🍮 postre · 🥣 desayuno · 🫓 pan/masa · 🫙 salsa/dip · 🥜 untable,
-  "title": dish name in its original language (trim),
-  "type": one of: Aves, Carne, Pescado, Leguminosas, Ensalada, Sopa/Curry, Granos/Pasta, Verduras, Postre, Desayuno, Pan/Masa, Salsas/Dips, Untables,
-  "porciones": e.g. "4 porciones"/"6 servings" if stated, else null,
-  "source_urls": [the source URL if provided, else []],
-  "groups": [{ "label": sub-group label or null, "kind": "ing" or "step", "items": [strings] }] — ingredients first, then steps, markers stripped, ORIGINAL language,
-  "notes": [short tips or macros in original language, or []],
-  "tags": array of applicable labels chosen ONLY from this list — conservative, do not over-tag (cuisine only if clearly that cuisine; "Vegetariano" if no meat/poultry/fish; "Vegano" if no animal products at all, also add Vegetariano; "Rápido" if quick/simple; "Picante" if notably spicy): ${TAG_VOCAB.join(", ")},
-  "language": "es" or "en" as detected
-}
-Do not invent ingredients or steps. If the input is not a recipe, return {"error":"not a recipe"}.`;
+const SYSTEM_KEEP = `You parse a recipe (a web page's text or pasted text) into structured data for a household recipe app. Keep it in its ORIGINAL language; do not translate. language is the detected language ("es" or "en").
+${FIELDS}`;
 
 function resolveUrl(u: string, base: string): string {
   if (u.startsWith("//")) return "https:" + u;
@@ -111,19 +144,12 @@ export async function parseRecipe(
     scrapedImage = image;
     body = `Source URL: ${trimmed}\n\nPage text:\n${text}`;
   }
-  const msg = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 3000,
+  const parsed = await callJSON<ParsedRecipe & { is_recipe: boolean }>({
     system: translate ? SYSTEM : SYSTEM_KEEP,
-    messages: [{ role: "user", content: body }],
+    user: body,
+    schema: RECIPE_SCHEMA,
   });
-  const text = msg.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-  const json = text.replace(/```json/gi, "").replace(/```/g, "").trim();
-  const parsed = JSON.parse(json);
-  if (parsed.error) throw new Error("No parece una receta.");
+  if (!parsed.is_recipe) throw new Error("No parece una receta.");
   if (isUrl && (!parsed.source_urls || parsed.source_urls.length === 0)) {
     parsed.source_urls = [trimmed];
   }
@@ -132,9 +158,8 @@ export async function parseRecipe(
   return parsed as ParsedRecipe;
 }
 
-// --- Recipe translation (server-side; mirrors supabase/translate-recipes.ts) ---
+// --- Recipe translation (server-side) ---
 type TGroup = { label: string | null; items: string[] };
-const T_SEP = /\n*~~~\n*/;
 
 export async function translateRecipeContent(
   src: { title: string; ingredients: TGroup[]; steps: TGroup[] },
@@ -154,29 +179,16 @@ export async function translateRecipeContent(
   const mx = toLang === "es"
     ? " Use natural MEXICAN Spanish and the ingredient names a Mexican home cook uses (betabel, elote, jitomate, chícharo, ejotes, camote, cacahuate, crema, queso fresco)."
     : "";
-  const system = `You translate recipe text into ${toLang === "es" ? "Spanish" : "English"}. You receive a JSON array of N strings (title, then ingredient and step lines). Translate each faithfully; do not add, drop, merge, or reorder. If a string is already in the target language, return it verbatim. Preserve numbers/quantities/units.${mx}
-Return via the return_translations tool a single "result" string with the N translations in order, each separated by a line containing only ~~~ (three tildes). Exactly N, each on one line, no numbering, no commentary.`;
+  const system = `You translate recipe text into ${toLang === "es" ? "Spanish" : "English"}. You receive a JSON array of N strings (title, then ingredient and step lines). Return exactly N translations in the same order: translate each faithfully; do not add, drop, merge, or reorder. If a string is already in the target language, or is only symbols or emoji, return it unchanged. Preserve numbers, quantities and units.${mx}`;
 
   let tr: string[] | null = null;
   for (let attempt = 0; attempt < 3 && !tr; attempt++) {
-    const msg = await client.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 8000,
+    const out = await callJSON<{ translations: string[] }>({
       system,
-      tools: [{
-        name: "return_translations",
-        description: "Return the translations as one string separated by ~~~ lines.",
-        input_schema: { type: "object", properties: { result: { type: "string" } }, required: ["result"] },
-      }],
-      tool_choice: { type: "tool", name: "return_translations" },
-      messages: [{ role: "user", content: JSON.stringify(strings) }],
+      user: JSON.stringify(strings),
+      schema: { type: "object", additionalProperties: false, required: ["translations"], properties: { translations: STR_ARR } },
     });
-    const tu = msg.content.find((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
-    const result = tu && (tu.input as { result?: unknown }).result;
-    if (typeof result === "string") {
-      const parts = result.split(T_SEP).map((x) => x.trim()).filter((x) => x.length > 0);
-      if (parts.length === strings.length) tr = parts;
-    }
+    if (out.translations.length === strings.length) tr = out.translations;
   }
   if (!tr) throw new Error("translation length mismatch");
   const rebuild = (shape: { labelIdx: number; itemIdxs: number[] }[]): TGroup[] =>
@@ -199,8 +211,7 @@ Produce a consolidated buy list:
 - EXCLUDE anything already on hand.
 - INCLUDE every staple.
 - Group items by aisle, choosing from: ${opts.aisles.join(", ")}.
-- Keep names short, in Spanish.
-Return ONLY a JSON array: [{"aisle":"...","items":[{"name":"...","qty":"..."|null}]}]. No commentary.`;
+- Keep names short, in Spanish.`;
 
   const user = JSON.stringify({
     ingredientes_recetas: opts.ingredients,
@@ -208,16 +219,17 @@ Return ONLY a JSON array: [{"aisle":"...","items":[{"name":"...","qty":"..."|nul
     ya_tengo: opts.onHand,
   });
 
-  const msg = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 3000,
+  const out = await callJSON<{ groups: ShoppingGroup[] }>({
     system: sys,
-    messages: [{ role: "user", content: user }],
+    user,
+    schema: {
+      type: "object", additionalProperties: false, required: ["groups"],
+      properties: { groups: { type: "array", items: { type: "object", additionalProperties: false, required: ["aisle", "items"], properties: {
+        aisle: { type: "string", enum: opts.aisles },
+        items: { type: "array", items: { type: "object", additionalProperties: false, required: ["name", "qty"],
+          properties: { name: STR, qty: { anyOf: [STR, { type: "null" }] } } } },
+      } } } },
+    },
   });
-  const text = msg.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-  const json = text.replace(/```json/gi, "").replace(/```/g, "").trim();
-  return JSON.parse(json) as ShoppingGroup[];
+  return out.groups;
 }

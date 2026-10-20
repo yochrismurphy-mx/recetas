@@ -2,6 +2,7 @@
 
 import { Children, useMemo, useState, useEffect, useTransition } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { Recipe, FilterState, CookStatus } from "@/lib/types";
 import { applyFilters, recipeIncomplete, FRIDGE_BUCKETS, RATING_OPTIONS } from "@/lib/filters";
 import { UI, typeLabel, collLabel, tagLabel, COOK_STATUS_LABELS as STATUS_LABELS, type Lang } from "@/lib/i18n";
@@ -396,7 +397,7 @@ export function LibraryClient({
               style={{ background: TYPE_TINT[r.type ?? ""] ?? "var(--color-surface)" }}
             >
               {r.image_url ? (
-                <img src={r.image_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                <Image src={r.image_url} alt="" fill sizes="(max-width: 640px) 50vw, 300px" className="object-cover" />
               ) : (
                 <span className="opacity-80">{r.emoji ?? "🍽️"}</span>
               )}

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   setRating, setCookStatus, addNote, setCollection, setTag, addCollection, addTag,
   deleteRecipe, updateRecipe, retranslate,
@@ -148,7 +149,7 @@ export function RecipeClient({
 
       <div className="relative mt-4 flex h-56 items-center justify-center overflow-hidden rounded-2xl bg-surface text-7xl">
         {recipe.image_url ? (
-          <img src={recipe.image_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <Image src={recipe.image_url} alt="" fill sizes="(max-width: 768px) 100vw, 768px" loading="eager" fetchPriority="high" className="object-cover" />
         ) : (
           <span className="opacity-80">{recipe.emoji ?? "🍽️"}</span>
         )}

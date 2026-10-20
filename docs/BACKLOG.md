@@ -55,7 +55,7 @@ Conventions: `[ ]` open · `[~]` partially done · `[x]` done (kept briefly for 
 
 ## Design / UX (smaller polish)
 
-- [ ] "Biblioteca" back-nav still re-fetches the whole library (force-dynamic), so it can feel slow on a cold load — consider caching / lighter back-nav if it still drags.
+- [x] Library load slimmed (2026-10-19): list query drops steps and the other language (894KB → 256KB), queries run in parallel, photos go through next/image (resized AVIF/WebP, lazy). Still force-dynamic; revisit caching only if it drags.
 - [ ] Apply the same optimistic-update pattern to any other laggy clicks we notice (week page, compras toggles).
 
 ---
