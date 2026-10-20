@@ -10,11 +10,9 @@ export const FRIDGE_BUCKETS: { key: string; label: string; test: (d: number) => 
 
 export const RATING_OPTIONS = [5, 4, 3];
 
-/** A recipe is incomplete when it has no ingredient text or no step text. */
+/** A recipe is incomplete when it has no ingredient text. Missing steps don't count (decided 2026-10-19). */
 export function recipeIncomplete(r: Recipe): boolean {
-  const hasText = (groups: Recipe["ingredients"]) =>
-    groups.some((g) => g.items.some((s) => s && s.trim().length > 0));
-  return !hasText(r.ingredients) || !hasText(r.steps);
+  return !r.ingredients.some((g) => g.items.some((s) => s && s.trim().length > 0));
 }
 
 function matches(r: Recipe, c: Chip): boolean {

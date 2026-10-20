@@ -46,4 +46,8 @@ describe("applyFilters", () => {
       applyFilters(data, { ...base, types: ["Salsas/Dips"], tags: ["Vegetariano"] }).map((x) => x.id),
     ).toEqual(["3"]);
   });
+  it("incompleteOnly flags missing ingredients, not missing steps", () => {
+    // "3" has ingredients but no steps, so it is complete.
+    expect(applyFilters(data, { ...base, incompleteOnly: true }).map((x) => x.id).sort()).toEqual(["1", "2"]);
+  });
 });
