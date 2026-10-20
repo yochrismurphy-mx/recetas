@@ -12,17 +12,19 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const s = getServerClient();
   const lang = await getLang();
 
-  const { data: r } = await s
-    .from("recipes")
-    .select(
-      "*, recipe_collections(collection_id), recipe_tags(tag_id), recipe_notes(id, body, created_at)",
-    )
-    .eq("id", id)
-    .single();
+  // One round trip: every query runs in parallel. The week check reads this recipe's plan
+  // rows and compares them with the current plan id, so it doesn't wait for that id first.
+  const [{ data: r }, { data: allCollections }, { data: allTags }, planId, { data: planRows }] = await Promise.all([
+    s.from("recipes")
+      .select("*, recipe_collections(collection_id), recipe_tags(tag_id), recipe_notes(id, body, created_at)")
+      .eq("id", id)
+      .single(),
+    s.from("collections").select("id, name").order("name"),
+    s.from("tags").select("id, name").order("name"),
+    currentPlanId(s),
+    s.from("plan_items").select("plan_id").eq("recipe_id", id),
+  ]);
   if (!r) notFound();
-
-  const { data: allCollections } = await s.from("collections").select("id, name").order("name");
-  const { data: allTags } = await s.from("tags").select("id, name").order("name");
 
   const c = localizeContent(r as any, lang);
   const recipe = {
@@ -48,17 +50,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       .map((n) => ({ id: n.id as string, body: n.body as string })),
   };
 
-  const planId = await currentPlanId(s);
-  let inWeek = false;
-  if (planId) {
-    const { data: pi } = await s
-      .from("plan_items")
-      .select("id")
-      .eq("plan_id", planId)
-      .eq("recipe_id", id)
-      .maybeSingle();
-    inWeek = !!pi;
-  }
+  const inWeek = !!planId && (planRows ?? []).some((x: any) => x.plan_id === planId);
 
   return (
     <RecipeClient

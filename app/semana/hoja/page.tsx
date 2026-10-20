@@ -12,17 +12,14 @@ export default async function Hoja() {
   let rows: any[] = [];
   let tasks: { text: string }[] = [];
   if (planId) {
-    const { data } = await s
-      .from("plan_items")
-      .select("position, recipes(title, title_es, emoji, porciones, fridge_life_days, ingredients, ingredients_es, steps, steps_es)")
-      .eq("plan_id", planId)
-      .order("position");
+    const [{ data }, { data: t }] = await Promise.all([
+      s.from("plan_items")
+        .select("position, recipes(title, title_es, emoji, porciones, fridge_life_days, ingredients, ingredients_es, steps, steps_es)")
+        .eq("plan_id", planId)
+        .order("position"),
+      s.from("plan_tasks").select("text").eq("plan_id", planId).order("position"),
+    ]);
     rows = (data ?? []).map((x: any) => x.recipes).filter(Boolean);
-    const { data: t } = await s
-      .from("plan_tasks")
-      .select("text")
-      .eq("plan_id", planId)
-      .order("position");
     tasks = t ?? [];
   }
 

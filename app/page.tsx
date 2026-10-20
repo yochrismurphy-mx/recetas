@@ -18,9 +18,10 @@ export default async function Home() {
     `ingredients_${lang}`,
     "recipe_collections(collections(name)), recipe_tags(tags(name))",
   ].join(", ");
-  const [{ data, error }, planId, { data: collRows }, { data: tagRows }] = await Promise.all([
+  const [{ data, error }, planId, { data: planRows }, { data: collRows }, { data: tagRows }] = await Promise.all([
     supabase.from("recipes").select(cols).order("title"),
     currentPlanId(supabase),
+    supabase.from("plan_items").select("plan_id, recipe_id"), // small table; filtered to the current plan below
     supabase.from("collections").select("name").order("name"),
     supabase.from("tags").select("name").order("name"),
   ]);
@@ -53,14 +54,9 @@ export default async function Home() {
     };
   });
 
-  let weekIds: string[] = [];
-  if (planId) {
-    const { data: items } = await supabase
-      .from("plan_items")
-      .select("recipe_id")
-      .eq("plan_id", planId);
-    weekIds = (items ?? []).map((x: any) => x.recipe_id as string);
-  }
+  const weekIds: string[] = planId
+    ? (planRows ?? []).filter((x: any) => x.plan_id === planId).map((x: any) => x.recipe_id as string)
+    : [];
 
   return (
     <LibraryClient

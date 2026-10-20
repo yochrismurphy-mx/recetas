@@ -10,20 +10,14 @@ export default async function Semana() {
   let recipes: { id: string; title: string; emoji: string | null }[] = [];
   let tasks: { id: string; text: string }[] = [];
   if (planId) {
-    const { data } = await s
-      .from("plan_items")
-      .select("position, recipes(id, title, title_es, emoji)")
-      .eq("plan_id", planId)
-      .order("position");
+    const [{ data }, { data: t }] = await Promise.all([
+      s.from("plan_items").select("position, recipes(id, title, title_es, emoji)").eq("plan_id", planId).order("position"),
+      s.from("plan_tasks").select("id, text").eq("plan_id", planId).order("position"),
+    ]);
     recipes = (data ?? [])
       .map((x: any) => x.recipes)
       .filter(Boolean)
       .map((r: any) => ({ id: r.id, title: r.title_es || r.title, emoji: r.emoji })); // week view is always Spanish
-    const { data: t } = await s
-      .from("plan_tasks")
-      .select("id, text")
-      .eq("plan_id", planId)
-      .order("position");
     tasks = t ?? [];
   }
   return <WeekClient recipes={recipes} tasks={tasks} />;
