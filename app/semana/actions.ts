@@ -33,6 +33,18 @@ export async function toggleWeek(recipeId: string) {
 
 export async function clearWeek() {
   const s = getServerClient();
+  // The week being cleared was cooked: its untried recipes become cooked (go-to stays go-to).
+  const current = await currentPlanId(s);
+  if (current) {
+    const { data: items } = await s.from("plan_items").select("recipe_id").eq("plan_id", current);
+    const ids = (items ?? []).map((x: { recipe_id: string }) => x.recipe_id);
+    if (ids.length) {
+      await s.from("recipes")
+        .update({ cook_status: "cocinada", tried: true, last_cooked: new Date().toISOString().slice(0, 10) })
+        .in("id", ids)
+        .eq("cook_status", "sin_probar");
+    }
+  }
   // Start a fresh plan; the old one stays as history.
   await s.from("plans").insert({ label: "Semana actual" });
   touch();

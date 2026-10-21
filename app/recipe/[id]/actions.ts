@@ -12,6 +12,13 @@ async function touch(id: string) {
 export async function setRating(id: string, rating: number | null) {
   const s = getServerClient();
   await s.from("recipes").update({ rating }).eq("id", id);
+  // Rating something means you've made it: an untried recipe becomes cooked. Go-to stays go-to.
+  if (rating != null) {
+    await s.from("recipes")
+      .update({ cook_status: "cocinada", tried: true, last_cooked: new Date().toISOString().slice(0, 10) })
+      .eq("id", id)
+      .eq("cook_status", "sin_probar");
+  }
   await touch(id);
 }
 

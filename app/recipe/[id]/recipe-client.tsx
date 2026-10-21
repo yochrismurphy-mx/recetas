@@ -245,7 +245,7 @@ export function RecipeClient({
                     key={i}
                     onMouseEnter={() => setHoverStar(i)}
                     onMouseLeave={() => setHoverStar(0)}
-                    onClick={() => { const next = i === rating ? null : i; setRatingLocal(next); start(() => setRating(recipe.id, next)); }}
+                    onClick={() => { const next = i === rating ? null : i; setRatingLocal(next); if (next != null && status === "sin_probar") setStatusLocal("cocinada"); start(() => setRating(recipe.id, next)); }}
                     className={`cursor-pointer px-0.5 transition-transform hover:scale-125 ${filled ? "text-accent" : "text-line"}`}
                     aria-label={`${i} estrellas`}
                   >
